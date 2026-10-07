@@ -4,11 +4,12 @@ Tracks every external dataset used in the project, per build plan rules.
 
 ## 1. Primary: Synthetic Data Generator
 
-- **Location**: `scripts/seed/generate.ts` (Phase 5)
+- **Location**: `scripts/seed/generate.py`
+- **Output**: `scripts/seed/dataset.json` (500 historical posts), `scripts/seed/truth.json` (ground truth multipliers)
 - **License**: N/A — generated internally
-- **Schema**: Defined by the `posts` + `engagement_metrics` normalization path (Phase 5)
-- **Purpose**: Development, testing, evaluation, and demos
-- **Notes**: A hidden truth table (`scripts/seed/truth.json`) is planted for evaluating the optimizer
+- **Schema**: Defined by the `posts` + `engagement_metrics` normalization path
+- **Purpose**: Development, automated testing, benchmark evaluation, and offline demo
+- **Notes**: A hidden ground-truth multiplier table (`scripts/seed/truth.json`) is planted with day/hour multipliers and content-type biases for evaluating optimizer recovery against known ground truth.
 
 ## 2. Live: Instagram/Facebook Graph API
 
@@ -16,6 +17,7 @@ Tracks every external dataset used in the project, per build plan rules.
 - **Data**: Post list, per-post insights (likes, comments, shares, saves, reach, views/impressions), audience demographics
 - **License**: Subject to Meta Platform Terms
 - **Consent**: Written consent required from any real account owner whose data is ingested
+- **Current Status**: Development mode ready; live human credential handoff documented in `docs/DEVIATIONS.md`
 
 ## 3. Competitor Data
 
@@ -24,13 +26,10 @@ Tracks every external dataset used in the project, per build plan rules.
 - **What is NOT available**: reach, impressions of competitor posts
 - **License**: Subject to Meta Platform Terms
 
-## 4. Optional Supplementary Datasets (not yet used)
+## 4. Supplementary Datasets
 
-- Kaggle / Hugging Face: "Instagram posts engagement dataset"
-- **Status**: Not yet inspected — do NOT assume schema or license
-- **Instructions**: If used, inspect license first, record exact source here, note limitations
-  (these datasets rarely contain posting-time ground truth tied to a single account)
+- **Status**: None ingested. External Kaggle / Hugging Face datasets were examined but excluded because none contain single-account posting-time ground truth with complete engagement snapshots necessary to validate the QUBO optimizer.
 
 ---
 
-_Last updated: Phase 1 scaffold. Update this file whenever a new dataset is introduced._
+_Last updated: Phase N4 documentation reconciliation (2026-10-07)._

@@ -45,17 +45,17 @@ Conflict resolution rule: `ENTANGLED_ECHO_BUILD_PLAN.md` (build plan) takes prec
 
 ---
 
-## Pending items (to update as implementation progresses)
+## Resolution of implementation items (Phases 1–12)
 
-| ID  | Item                                                                              | Status       |
-| --- | --------------------------------------------------------------------------------- | ------------ |
-| P1  | Confirm current Meta Graph API version and all permission names                   | ⏳ Phase 4   |
-| P2  | Confirm `impressions` vs `views` field status in current Graph API                | ⏳ Phase 4/5 |
-| P3  | Confirm Instagram audience demographics minimum follower threshold                | ⏳ Phase 4/5 |
-| P4  | Confirm daily Instagram publishing API limits                                     | ⏳ Phase 9   |
-| P5  | Record actual NFR measurements (dashboard load, API p95, optimization time, etc.) | ⏳ Phase 12  |
-| P6  | Confirm whether `instagram_basic` is deprecated; find replacement scope name      | ⏳ Phase 4   |
+| ID  | Item                                                       | Resolution / Final Status                                                                                                                                                                                       |
+| --- | ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P1  | Current Meta Graph API version and permissions             | Resolved: Meta Graph API **v22.0** (default fallback in code; configurable via `META_GRAPH_VERSION`). DEVIATIONS.md previously stated v21.0 — corrected during N1 audit 2026-10-07. |
+| P2  | `impressions` vs `views` field status                      | Resolved: Schema supports both `views` AND `impressions` nullable. Video/Reel media maps to views while legacy posts populate impressions.                                                                      |
+| P3  | Instagram audience demographics minimum follower threshold | Resolved: Meta enforces 100+ follower threshold for audience insights. Fallback handles empty demographic payload gracefully.                                                                                   |
+| P4  | Daily Instagram publishing API limits                      | Resolved: Meta enforces 25 posts/24-hour rolling window limit per creator account. Enforced and tested in scheduler.                                                                                            |
+| P5  | Record actual NFR measurements                             | Resolved: Recorded in `docs/EVALUATION.md` (0.45s load, 185ms API p95, 2.21s optimization, 0.055s batch sync).                                                                                                  |
+| P6  | Replacement scope for deprecated `instagram_basic`         | Resolved: Replaced with `instagram_business_basic`, `instagram_business_content_publish`, `instagram_business_manage_insights` in `apps/web/src/lib/providers/social/instagram.ts`. Fixed in N1 audit 2026-10-07. |
 
 ---
 
-_This file is updated continuously. See also `docs/DATA_SOURCES.md` and `docs/EVALUATION.md`._
+_This file is complete and up-to-date with the final implementation. See also `docs/DATA_SOURCES.md`, `docs/EVALUATION.md`, and `docs/TRACEABILITY.md`._
