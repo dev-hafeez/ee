@@ -74,6 +74,7 @@ The web dashboard is served at `http://localhost:3000`.
 ### 3. AI Service Setup (Python FastAPI)
 
 #### Option A: Local Virtual Environment
+
 ```bash
 cd services/ai
 uv venv .venv --python python3.12
@@ -88,6 +89,7 @@ uvicorn app.main:app --reload --port 8000
 ```
 
 #### Option B: Docker Compose
+
 ```bash
 docker compose up ai --build
 ```
@@ -122,11 +124,11 @@ This will output the local API URL, anon key, and service role key to put into y
 
 ## Development Scripts
 
-| Command | Description |
-|---|---|
-| `pnpm run dev` | Start Next.js web application |
-| `pnpm run build` | Build Next.js production bundle |
-| `pnpm run lint` | Run ESLint across monorepo |
-| `pnpm run typecheck` | Run TypeScript check (`tsc --noEmit`) |
-| `pnpm run format` | Format code with Prettier |
-| `pnpm run format:check` | Verify formatting with Prettier |
+| Command                 | Description                           |
+| ----------------------- | ------------------------------------- |
+| `pnpm run dev`          | Start Next.js web application         |
+| `pnpm run build`        | Build Next.js production bundle       |
+| `pnpm run lint`         | Run ESLint across monorepo            |
+| `pnpm run typecheck`    | Run TypeScript check (`tsc --noEmit`) |
+| `pnpm run format`       | Format code with Prettier             |
+| `pnpm run format:check` | Verify formatting with Prettier       |
