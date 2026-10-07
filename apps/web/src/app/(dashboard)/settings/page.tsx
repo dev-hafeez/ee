@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { updateProfile } from './profile-actions';
+import { connectSocialAccount, disconnectSocialAccount } from './social-actions';
 
 interface ProfileData {
   displayName: string;
@@ -19,6 +20,12 @@ export default function SettingsPage() {
   });
 
   const [saving, setSaving] = useState(false);
+  const [connecting, setConnecting] = useState<string | null>(null);
+  const [accounts, setAccounts] = useState({
+    instagram: { connected: true, handle: 'alex_rivers_creative', id: 'acc_ig_1' },
+    facebook: { connected: false, handle: null, id: null },
+  });
+
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(
     null
   );
@@ -39,14 +46,49 @@ export default function SettingsPage() {
     setSaving(false);
   }
 
+  async function handleToggleConnect(platform: 'instagram' | 'facebook') {
+    setConnecting(platform);
+    setFeedback(null);
+
+    const acc = accounts[platform];
+    if (acc.connected && acc.id) {
+      const res = await disconnectSocialAccount(acc.id);
+      if (res?.error) {
+        setFeedback({ type: 'error', text: res.error });
+      } else {
+        setAccounts((prev) => ({
+          ...prev,
+          [platform]: { connected: false, handle: null, id: null },
+        }));
+        setFeedback({ type: 'success', text: `Disconnected ${platform} account.` });
+      }
+    } else {
+      const res = await connectSocialAccount(platform);
+      if (res?.error) {
+        setFeedback({ type: 'error', text: res.error });
+      } else if (res?.success) {
+        setAccounts((prev) => ({
+          ...prev,
+          [platform]: { connected: true, handle: res.handle, id: `acc_${platform}_mock` },
+        }));
+        setFeedback({
+          type: 'success',
+          text: `Successfully connected ${platform} (@${res.handle})! AES-256-GCM token encrypted.`,
+        });
+      }
+    }
+    setConnecting(null);
+  }
+
   return (
-    <div className="space-y-8">
+    <div className="max-w-4xl space-y-8">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-[#373E3E]">
           Account &amp; Platform Settings
         </h1>
         <p className="mt-1 text-sm text-zinc-500">
-          Manage your personal creator profile, timezone preferences, and connected social accounts.
+          Manage creator profile, timezone preferences, and connected social accounts (SRDS FR-07,
+          FR-08).
         </p>
       </div>
 
@@ -65,7 +107,7 @@ export default function SettingsPage() {
       {/* Profile Information Section */}
       <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-[#373E3E]">Creator Profile (FR-04)</h2>
-        <p className="text-xs text-zinc-500">Your public profile name and bio information.</p>
+        <p className="text-xs text-zinc-500">Your profile details and timezone for scheduling.</p>
 
         <form onSubmit={handleSaveProfile} className="mt-6 max-w-xl space-y-4">
           <div>
@@ -131,9 +173,12 @@ export default function SettingsPage() {
 
       {/* Connected Social Accounts Section */}
       <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-[#373E3E]">Connected Social Accounts</h2>
+        <h2 className="text-lg font-semibold text-[#373E3E]">
+          Connected Social Accounts (FR-07/08)
+        </h2>
         <p className="text-xs text-zinc-500">
-          Instagram and Facebook account integrations only (SRDS Section 2.2).
+          Instagram and Facebook account integrations only (SRDS Section 2.2). Tokens encrypted with
+          AES-256-GCM.
         </p>
 
         <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -142,19 +187,39 @@ export default function SettingsPage() {
             <div>
               <div className="flex items-center justify-between">
                 <span className="font-semibold text-zinc-900">Instagram</span>
-                <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
-                  Connected
-                </span>
+                {accounts.instagram.connected ? (
+                  <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
+                    Connected
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-500">
+                    Disconnected
+                  </span>
+                )}
               </div>
-              <p className="mt-2 text-xs text-zinc-500">Account: @alex_rivers_creative</p>
-              <p className="text-xs text-zinc-400">Tokens encrypted with AES-256-GCM</p>
+              <p className="mt-2 text-xs text-zinc-500">
+                {accounts.instagram.connected
+                  ? `Handle: @${accounts.instagram.handle}`
+                  : 'Connect your Instagram Professional/Creator account'}
+              </p>
+              <p className="mt-1 text-[11px] text-zinc-400">AES-256-GCM encrypted in database</p>
             </div>
             <div className="mt-6">
               <button
                 type="button"
-                className="w-full rounded-lg border border-black bg-transparent py-1.5 text-xs font-semibold text-black transition-colors hover:bg-black hover:text-white"
+                disabled={connecting === 'instagram'}
+                onClick={() => handleToggleConnect('instagram')}
+                className={`w-full rounded-lg border py-2 text-xs font-semibold transition-colors disabled:opacity-50 ${
+                  accounts.instagram.connected
+                    ? 'border-red-300 text-red-700 hover:bg-red-50'
+                    : 'border-black text-black hover:bg-black hover:text-white'
+                }`}
               >
-                Sync Data Now
+                {connecting === 'instagram'
+                  ? 'Processing...'
+                  : accounts.instagram.connected
+                    ? 'Disconnect Instagram'
+                    : 'Connect Instagram'}
               </button>
             </div>
           </div>
@@ -164,18 +229,39 @@ export default function SettingsPage() {
             <div>
               <div className="flex items-center justify-between">
                 <span className="font-semibold text-zinc-900">Facebook Page</span>
-                <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600">
-                  Not Connected
-                </span>
+                {accounts.facebook.connected ? (
+                  <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
+                    Connected
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-500">
+                    Disconnected
+                  </span>
+                )}
               </div>
-              <p className="mt-2 text-xs text-zinc-500">Connect a Meta Facebook Business Page</p>
+              <p className="mt-2 text-xs text-zinc-500">
+                {accounts.facebook.connected
+                  ? `Handle: @${accounts.facebook.handle}`
+                  : 'Connect a Meta Facebook Business Page'}
+              </p>
+              <p className="mt-1 text-[11px] text-zinc-400">AES-256-GCM encrypted in database</p>
             </div>
             <div className="mt-6">
               <button
                 type="button"
-                className="w-full rounded-lg border border-black bg-transparent py-1.5 text-xs font-semibold text-black transition-colors hover:bg-black hover:text-white"
+                disabled={connecting === 'facebook'}
+                onClick={() => handleToggleConnect('facebook')}
+                className={`w-full rounded-lg border py-2 text-xs font-semibold transition-colors disabled:opacity-50 ${
+                  accounts.facebook.connected
+                    ? 'border-red-300 text-red-700 hover:bg-red-50'
+                    : 'border-black text-black hover:bg-black hover:text-white'
+                }`}
               >
-                Connect Facebook
+                {connecting === 'facebook'
+                  ? 'Processing...'
+                  : accounts.facebook.connected
+                    ? 'Disconnect Facebook'
+                    : 'Connect Facebook'}
               </button>
             </div>
           </div>
