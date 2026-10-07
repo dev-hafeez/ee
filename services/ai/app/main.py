@@ -29,6 +29,18 @@ app.add_middleware(
 app.include_router(v1_router, prefix="/api/v1")
 
 
+@app.get("/", tags=["Root"])
+async def root() -> dict:
+    """Service status and documentation entry point."""
+    return {
+        "service": "Entangled Echo AI Service",
+        "status": "running",
+        "version": "0.1.0",
+        "docs": "/docs",
+        "health": "/health",
+    }
+
+
 @app.get("/health", tags=["Health"])
 async def health() -> dict:
     """Health check endpoint — used by the keep-alive ping and container orchestration."""

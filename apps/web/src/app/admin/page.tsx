@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { AdminClient, UserRow } from './AdminClient';
 
+export const dynamic = 'force-dynamic';
+
 export default async function AdminPage() {
   const isPlaceholder =
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||
