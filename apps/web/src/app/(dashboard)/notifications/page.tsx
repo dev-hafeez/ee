@@ -1,15 +1,30 @@
-export default function NotificationsPage() {
-  return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold tracking-tight text-[#373E3E]">
-        Notifications &amp; Alerts
-      </h1>
-      <p className="text-sm text-zinc-500">
-        In-app alerts, post reminders, and optimization milestone updates (FR-33..35).
-      </p>
-      <div className="rounded-xl border border-zinc-200 bg-white p-8 text-center text-sm text-zinc-400">
-        Notifications module (Phase 11).
-      </div>
-    </div>
-  );
+import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { NotificationsClient, NotificationItem } from './NotificationsClient';
+
+export const dynamic = 'force-dynamic';
+
+export default async function NotificationsPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const db = user ? supabase : createAdminClient();
+
+  const { data: notifications } = await db
+    .from('notifications')
+    .select('id, type, message, is_read, sent_at')
+    .order('sent_at', { ascending: false })
+    .limit(50);
+
+  const initialNotifications: NotificationItem[] = (notifications || []).map((n) => ({
+    id: n.id,
+    type: n.type,
+    message: n.message,
+    is_read: n.is_read,
+    sent_at: n.sent_at,
+  }));
+
+  return <NotificationsClient initialNotifications={initialNotifications} />;
 }
