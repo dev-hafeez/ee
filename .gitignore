@@ -1,0 +1,61 @@
+# Entangled Echo — monorepo .gitignore
+
+# Node
+node_modules/
+.pnpm-store/
+.pnpm-debug.log*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Next.js
+apps/web/.next/
+apps/web/out/
+apps/web/.vercel/
+
+# Python
+services/ai/__pycache__/
+services/ai/**/__pycache__/
+services/ai/.venv/
+services/ai/venv/
+services/ai/.pytest_cache/
+services/ai/**/*.pyc
+services/ai/**/*.pyo
+services/ai/.ruff_cache/
+services/ai/htmlcov/
+services/ai/.coverage
+
+# Env files — NEVER commit real env files
+.env
+.env.local
+.env.*.local
+.env.production
+apps/web/.env
+apps/web/.env.local
+services/ai/.env
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+
+# Supabase local
+supabase/.temp/
+supabase/docker/volumes/
+
+# Logs
+*.log
+logs/
+
+# Test coverage
+coverage/

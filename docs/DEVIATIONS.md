@@ -1,0 +1,61 @@
+# DEVIATIONS.md — Entangled Echo
+
+Maintained by: AI coding agent (Antigravity).  
+Purpose: Every place the implementation differs from `srdsfyp.pdf`, with a one-line reason. Students use this to update the SRDS.
+
+Last updated: 2026-10-07  
+Conflict resolution rule: `ENTANGLED_ECHO_BUILD_PLAN.md` (build plan) takes precedence over `srdsfyp.pdf` where they conflict; current Meta API docs take precedence over both for any Graph API detail.
+
+---
+
+## Deviations carried forward from the build plan
+
+| ID  | SRDS section / statement                                                        | Implementation                                                                                                                                                     | Reason                                                                                                        |
+| --- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| D1  | §4.2.1 — Custom `/auth/register`, `/auth/login` routes; bcrypt cost factor 12   | Use **Supabase Auth** (`@supabase/ssr`); thin BFF wrappers only. Cost factor is not user-configurable in Supabase.                                                 | Supabase Auth handles hashing, email verification, JWT, password-reset out of the box.                        |
+| D2  | §2.1 — "serverless functions for the backend" + Python FastAPI                  | Deploy FastAPI as a **long-running container** (Render / Railway / Fly.io). Next.js on Vercel.                                                                     | ML models and optimization jobs exceed serverless cold-start and execution-time limits.                       |
+| D3  | §5.6.1 — Alg. 1: classic SA with slot-swapping; confidence "attached" to output | **QUBO formulation** solved with `dwave-samplers` `SimulatedAnnealingSampler`; confidence via bootstrap resampling (30 runs).                                      | QUBO is the native input format of quantum annealers — makes "quantum-inspired" technically defensible.       |
+| D4  | §5.6.1 — "generate 3 alternatives by perturbing primary_schedule"               | Take top-K **distinct low-energy samples** from the SA sampler.                                                                                                    | More principled; avoids bias introduced by perturbation; free from the solver.                                |
+| D5  | §3.3.3 — "WebSocket connections for live dashboard updates"                     | **Supabase Realtime** subscriptions on relevant tables.                                                                                                            | Same effect, no custom WebSocket server.                                                                      |
+| D6  | §3.1.6 / implied cron "every 24 h"; §4.1.5 — publish within 60 s                | `pg_cron` every minute calling `/internal/tick`; daily sync via same tick.                                                                                         | Vercel free-tier cron is too coarse; daily is too infrequent for the 60 s publish requirement.                |
+| D7  | §3.1.7 FR-32 — Competitor reach and impressions via Graph API                   | **Business Discovery API** only; reach/impressions unavailable for other accounts. Shows: followers, media count, public likes/comments.                           | Meta API limitation — reach/impressions available only to the account owner.                                  |
+| D8  | §5.3 ERD — missing tables                                                       | Added: `audience_snapshots`, `competitors`, `notification_preferences`; added `topics`, `sentiment` to `posts`; added `accepted`, `feedback` to `recommendations`. | Referenced in sequence diagrams SD-03, SD-07, SD-08 but absent from the SRDS ERD.                             |
+| D9  | §4.2.7 — "scan all user-uploaded media for malicious content"                   | Magic-byte validation + size limit + `sharp` re-encoding (strips payloads) + optional ClamAV container.                                                            | Pragmatic open-source equivalent; no commercial AV service required for FYP.                                  |
+| D10 | Engagement fields in ERD                                                        | Both `views` AND `impressions` columns stored (nullable).                                                                                                          | `impressions` was being replaced by `views` in newer Graph API versions — verified at Phase 4 implementation. |
+
+---
+
+## Additional conflicts / deviations identified during pre-build analysis
+
+| ID  | SRDS section    | SRDS statement                                                                                                                          | Conflict / deviation                                                                                                | Resolution                                                                          |
+| --- | --------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| D11 | §2.1            | "serverless functions for the backend"                                                                                                  | Build plan overrides with long-running container.                                                                   | Follow build plan (D2).                                                             |
+| D12 | §3.3.2          | "Instagram Graph API v18+, Facebook Graph API v18+"                                                                                     | Version hardcoded in SRDS.                                                                                          | Use `META_GRAPH_VERSION` env var; verify current stable version at Phase 4.         |
+| D13 | §1.2            | "variational optimization" mentioned as a technique                                                                                     | Not implemented; build plan §6.1 explicitly prohibits claiming it.                                                  | Do not use the term "variational optimization" anywhere in the app or UI.           |
+| D14 | §3.3.2          | Permissions: `instagram_basic`, `instagram_content_publish`, `instagram_manage_insights`, `pages_read_engagement`, `pages_manage_posts` | `instagram_basic` was deprecated; all names subject to change.                                                      | Verify every permission name against current Meta docs at Phase 4; update P6 below. |
+| D15 | §5.3 ERD        | `users` table as first-class entity                                                                                                     | Implementation uses Supabase `auth.users` + `profiles` extension table. No standalone `users` table.                | Follows D1; `auth.users` is managed by Supabase.                                    |
+| D16 | §3.3.1 Fig. 3-7 | Settings page shows YouTube, TikTok, X, LinkedIn                                                                                        | Build plan: "Show only Instagram and Facebook in the UI." These platforms are out of scope.                         | Do not render YouTube / TikTok / X / LinkedIn anywhere in the UI.                   |
+| D17 | §4.2.3          | "valid JWT access token with appropriate role claims" implies app-issued JWTs                                                           | Supabase Auth issues JWTs; app validates via Supabase SDK. Role claims checked via `profiles.role` server-side.     | Functionally equivalent; follows D1.                                                |
+| D18 | §4.2.1          | "bcrypt with a minimum cost factor of 12"                                                                                               | Supabase Auth does not expose the bcrypt cost factor — it is Supabase's internal default.                           | Students should update SRDS: "bcrypt, cost factor managed by Supabase Auth."        |
+| D19 | §4.1.2          | "REST API p95 < 500 ms at 100 concurrent users"                                                                                         | Free-tier container may sleep; cold-start inflates latency. Results recorded honestly in `docs/EVALUATION.md`.      | Add `/health` keep-alive ping. Do not hide shortfalls in evaluation.                |
+| D20 | §3.1.5 FR-24    | "Machine Learning: learn from accept/reject to improve future results"                                                                  | No model retraining in MVP. Preference weights re-rank future results and feed prompt hints.                        | Label as "preference re-ranking" everywhere — not "model retraining."               |
+| D21 | §5.6.1 Alg. 1   | "FETCH historical posts for account_id (last 90 days)" fixed window                                                                     | Build plan adds shrinkage (fall back to 12 months if sparse) and cold-start handling (< 20 posts).                  | More robust for sparse / new accounts.                                              |
+| D22 | §3.1.4 FR-19    | "Ranked Alternatives: provide alternative schedules if conflicts arise"                                                                 | Alternatives always returned (top-K distinct SA samples), not only on conflict.                                     | Better UX; no penalty.                                                              |
+| D23 | §3.1.3 FR-13    | "NLP Analysis" implies sophisticated NLP model                                                                                          | TF-IDF for topics, VADER for sentiment. Do not label outputs as DistilBERT/XGBoost/LightGBM unless those are built. | Honest labeling per build plan rule 6.                                              |
+
+---
+
+## Pending items (to update as implementation progresses)
+
+| ID  | Item                                                                              | Status       |
+| --- | --------------------------------------------------------------------------------- | ------------ |
+| P1  | Confirm current Meta Graph API version and all permission names                   | ⏳ Phase 4   |
+| P2  | Confirm `impressions` vs `views` field status in current Graph API                | ⏳ Phase 4/5 |
+| P3  | Confirm Instagram audience demographics minimum follower threshold                | ⏳ Phase 4/5 |
+| P4  | Confirm daily Instagram publishing API limits                                     | ⏳ Phase 9   |
+| P5  | Record actual NFR measurements (dashboard load, API p95, optimization time, etc.) | ⏳ Phase 12  |
+| P6  | Confirm whether `instagram_basic` is deprecated; find replacement scope name      | ⏳ Phase 4   |
+
+---
+
+_This file is updated continuously. See also `docs/DATA_SOURCES.md` and `docs/EVALUATION.md`._

@@ -1,0 +1,24 @@
+{
+  "name": "entangled-echo",
+  "private": true,
+  "version": "0.1.0",
+  "description": "AI-powered social media content optimizer",
+  "packageManager": "pnpm@12.9.1",
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @ee/web dev",
+    "build": "pnpm --filter @ee/web build",
+    "lint": "pnpm -r lint",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,css}\" --ignore-path .gitignore",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,css}\" --ignore-path .gitignore",
+    "typecheck": "pnpm --filter @ee/web typecheck"
+  },
+  "devDependencies": {
+    "prettier": "^3.3.3",
+    "prettier-plugin-tailwindcss": "^0.8.1",
+    "typescript": "^5.6.3"
+  }
+}

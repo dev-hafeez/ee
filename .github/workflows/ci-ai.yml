@@ -1,0 +1,65 @@
+name: CI — AI Service (Python/FastAPI)
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "services/ai/**"
+      - ".github/workflows/ci-ai.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "services/ai/**"
+
+env:
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  lint:
+    name: Ruff Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+          cache-dependency-path: services/ai/requirements-dev.txt
+
+      - name: Install ruff
+        run: pip install ruff
+
+      - name: Run ruff
+        run: ruff check services/ai/
+
+  test:
+    name: Pytest
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/ai
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+          cache-dependency-path: services/ai/requirements-dev.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Run tests
+        env:
+          DATA_MODE: mock
+          LLM_PROVIDER: mock
+        run: pytest --cov=app --cov-report=xml -q
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          files: services/ai/coverage.xml
+          flags: ai-service
