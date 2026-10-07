@@ -180,19 +180,42 @@
   "hashtag_clusters": {
     "tech_ai": {
       "multiplier": 1.5,
-      "tags": ["#ai", "#technology", "#futureoftech", "#deeplearning", "#quantum"]
+      "tags": [
+        "#ai",
+        "#technology",
+        "#futureoftech",
+        "#deeplearning",
+        "#quantum"
+      ]
     },
     "growth_marketing": {
       "multiplier": 1.35,
-      "tags": ["#marketing", "#socialmediagrowth", "#contentstrategy", "#creator", "#analytics"]
+      "tags": [
+        "#marketing",
+        "#socialmediagrowth",
+        "#contentstrategy",
+        "#creator",
+        "#analytics"
+      ]
     },
     "lifestyle_bts": {
       "multiplier": 1.0,
-      "tags": ["#workspace", "#bts", "#dayinthelife", "#creativelife", "#focus"]
+      "tags": [
+        "#workspace",
+        "#bts",
+        "#dayinthelife",
+        "#creativelife",
+        "#focus"
+      ]
     },
     "general": {
       "multiplier": 0.8,
-      "tags": ["#daily", "#instagood", "#post", "#trending"]
+      "tags": [
+        "#daily",
+        "#instagood",
+        "#post",
+        "#trending"
+      ]
     }
   },
   "top_planted_slots": [
