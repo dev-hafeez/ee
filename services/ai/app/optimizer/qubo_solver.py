@@ -89,7 +89,9 @@ def solve_qubo(v_s: np.ndarray,
                min_gap_hours: int,
                blackout_slots: list[int] = None,
                num_reads: int = settings.optimizer_num_reads,
-               num_sweeps: int = 250) -> list[dict[str, Any]]:
+               num_sweeps: int = 500,
+               beta_range: list[float] | None = None,
+               beta_schedule_type: str = "linear") -> list[dict[str, Any]]:
     if blackout_slots is None:
         blackout_slots = []
 
@@ -99,9 +101,11 @@ def solve_qubo(v_s: np.ndarray,
         raise ValueError("Not enough valid slots to schedule the requested number of posts.")
 
     # QUBO: min -sum(v_s * x_s) + A(sum(x_s) - K)^2 + B sum(conflict x_i x_j)
-    max_v = v_s.max() if len(v_s) > 0 else 1.0
-    A = max_v * posts_per_week * 2 if max_v > 0 else 2 * posts_per_week
-    B = A
+    # Scaled penalty: A must exceed max_v (1.0) to make violating cardinality unprofitable,
+    # but not excessively large so single Metropolis spin-flips during annealing can traverse feasible states.
+    max_v = float(v_s.max()) if len(v_s) > 0 else 1.0
+    A = max(1.25 * max_v, 1.0)
+    B = max(2.0 * max_v, 1.5)
 
     # Build Q matrix for dimod
     Q = {}
@@ -119,14 +123,11 @@ def solve_qubo(v_s: np.ndarray,
             w = valid_slots[j]
             Q[(u, w)] = 2 * A
 
-    # Conflicts: same day closer than min_gap_hours
-    # We can also handle wrap-around if min_gap crosses days, but let's stick to same day for now per SRDS or general gap
+    # Conflicts: same day or wrap-around distance closer than min_gap_hours
     for i in range(len(valid_slots)):
         for j in range(i + 1, len(valid_slots)):
             u = valid_slots[i]
             w = valid_slots[j]
-            # General gap: distance in hours
-            # To handle wrap-around in a week:
             diff1 = abs(u - w)
             diff2 = 168 - diff1
             dist = min(diff1, diff2)
@@ -137,7 +138,16 @@ def solve_qubo(v_s: np.ndarray,
 
     bqm = dimod.BinaryQuadraticModel.from_qubo(Q)
     sampler = SimulatedAnnealingSampler()
-    sampleset = sampler.sample(bqm, num_reads=num_reads, num_sweeps=num_sweeps)
+    if beta_range is None:
+        beta_range = [0.01, 20.0]
+
+    sampleset = sampler.sample(
+        bqm,
+        num_reads=num_reads,
+        num_sweeps=num_sweeps,
+        beta_range=beta_range,
+        beta_schedule_type=beta_schedule_type,
+    )
 
     # Filter feasible solutions
     feasible_schedules = []
@@ -226,8 +236,9 @@ def run_optimization(
                     posts_per_week,
                     min_gap_hours,
                     converted_blackouts,
-                    num_reads=6,
-                    num_sweeps=60,
+                    num_reads=10,
+                    num_sweeps=100,
+                    beta_range=[0.05, 15.0],
                 )
                 if boot_schedules:
                     primary = boot_schedules[0]["slots"]
