@@ -18,9 +18,7 @@
 
 ### §2.2 Out of Scope
 
-| Change | Reason |
-|--------|--------|
-| Confirm: TikTok, X, LinkedIn, YouTube remain out of scope | Only Instagram and Facebook are implemented (D16) |
+| Confirm: All other third-party social networks remain out of scope | Only Instagram and Facebook are implemented (D16) |
 
 ### §3.1 Functional Requirements
 
@@ -117,7 +115,7 @@ Replace the pseudocode with the QUBO formulation:
 
 | Change | Reason |
 |--------|--------|
-| Remove YouTube, TikTok, X, LinkedIn from Settings page mockup | D16 — only Instagram and Facebook implemented |
+| Remove extraneous platform tabs from Settings page mockup | D16 — strictly Instagram and Facebook are implemented |
 
 ---
 

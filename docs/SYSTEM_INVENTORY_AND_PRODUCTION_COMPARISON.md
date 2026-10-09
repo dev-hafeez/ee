@@ -116,7 +116,7 @@ The following matrix compares Entangled Echo against commercial social media man
 
 | Dimension                        | Entangled Echo (Current Implementation)                                                                                                 | Commercial Customer-Grade Product (Buffer / Hootsuite)                                                                                                 | Gap Analysis / Commercial Impact                                                                                                  |
 | :------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------- |
-| **Social Platforms**             | **Instagram & Facebook only** (strictly scoped to Meta Graph API v22.0).                                                                | **Omnichannel**: Instagram, Facebook, TikTok, LinkedIn, YouTube Shorts, X (Twitter), Pinterest, Threads, Bluesky.                                      | Commercial users expect to publish across multiple networks simultaneously from one editor.                                       |
+| **Social Platforms**             | **Instagram & Facebook only** (strictly scoped to Meta Graph API v22.0).                                                                | **Broad Multi-Platform**: Commercial tools frequently support numerous additional networks.                                                            | Commercial users sometimes expect to publish across numerous social networks simultaneously.                                       |
 | **Meta API Review Status**       | **Development Mode**: Works for admin, developer, and tester accounts; fully offline via `DATA_MODE=seed`.                              | **Verified Tech Provider**: Production App Review approved for `instagram_content_publish`, `pages_manage_posts`, etc.                                 | Any end-user can authenticate in commercial products; Entangled Echo requires pre-registering test users or running in seed mode. |
 | **Media Creative Studio**        | **Raw Upload & Magic-Byte Validation**: Accepts valid JPEG, PNG, MP4, WebP up to limits.                                                | **In-App Media Suite**: Built-in Canva integration, crop presets (1:1, 4:5, 9:16), video trimming, thumbnail selector, automated caption subtitles.    | Creators currently have to format and crop their images externally before uploading to Entangled Echo.                            |
 | **Multi-Media Formats**          | **Single Media Post Support**: Direct image or video file path per scheduled post.                                                      | **Complex Formats**: Multi-slide carousels (up to 10 images/videos), Instagram Stories with link stickers, Instagram Collabs, Tagging people/products. | High-engagement Instagram carousels with individual slide reordering are standard in commercial tools.                            |
@@ -152,7 +152,7 @@ To evolve Entangled Echo into a market-ready commercial product, future engineer
 
 ---
 
-### Milestone B: Meta App Review & Channel Expansion
+### Milestone B: Meta App Review & Official Production Verification
 
 1. **Meta Business Verification & App Review Submission**:
    - Complete Meta Business Manager verification.
@@ -162,11 +162,6 @@ To evolve Entangled Echo into a market-ready commercial product, future engineer
      - `instagram_business_content_publish`
      - `pages_read_engagement`
      - `pages_manage_posts`
-2. **Channel Expansion (Beyond Meta)**:
-   - **TikTok Content Posting API**: OAuth 2.0 connection, direct TikTok video publishing, and video performance analytics.
-   - **LinkedIn API v2**: Share text, images, and documents to personal profiles and LinkedIn Company Pages.
-   - **YouTube Shorts API**: Video upload and title/tag optimization.
-   - **X (Twitter) API v2**: Tweet scheduling and thread generation.
 
 ---
 

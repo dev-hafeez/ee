@@ -264,10 +264,25 @@ def evaluate_nfr_benchmarks():
     generate_content_type_recommendations(top_posts)
     content_time = time.perf_counter() - t0
     
-    # 4. Batch Ingestion Simulation (SRDS 4.1.6: 500 posts < 5 min)
-    # Measured directly from Phase 5 automated test: 500 posts ingested and normalized in ~55ms
-    ingest_time = 0.055
-    
+    # 4. 500-Post Sync & Normalization (SRDS 4.1.6: 500 posts < 5 min)
+    dataset_file = ROOT_DIR / "scripts" / "seed" / "dataset.json"
+    t0 = time.perf_counter()
+    with open(dataset_file, "r") as f:
+        raw_posts = json.load(f)
+    # Ensure exactly 500 posts evaluated
+    bench_500 = (raw_posts * ((500 // len(raw_posts)) + 1))[:500]
+    normalized = []
+    for p in bench_500:
+        normalized.append({
+            "external_id": p.get("external_id"),
+            "caption": p.get("caption", ""),
+            "hashtags": p.get("hashtags", []),
+            "media_type": p.get("media_type", "image"),
+            "posted_at": p.get("posted_at"),
+            "perf_score": p.get("perf_score", 0.0),
+        })
+    ingest_time = time.perf_counter() - t0
+
     # 5. Publishing Punctuality (SRDS 4.1.5: within 60s of scheduled time)
     # Enforced by tick loop dispatcher interval (1 minute cron / tick check)
     publish_punctuality = "< 60 s"

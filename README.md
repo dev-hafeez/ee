@@ -153,17 +153,17 @@ Entangled Echo uses a decoupled multi-provider architecture selectable via `DATA
 All 35 Functional Requirements (FR-01 through FR-35) are backed by automated tests:
 
 ```bash
-# Run Web Application Test Suite (23 automated unit/integration tests)
+# Run Web Application Test Suite (40 automated unit/integration/accessibility tests)
 pnpm --filter @ee/web test
 
-# Run Python AI Service Test Suite (18 automated tests: analysis, QUBO, recommender)
-./services/ai/.venv/bin/pytest services/ai/tests
+# Run Python AI Service Test Suite (20 automated tests: analysis, QUBO, recommender, auth)
+./services/ai/.venv/bin/pytest services/ai/tests -v
 
 # Run Comprehensive Evaluation Benchmark Suite (QUBO vs Baselines & NFRs)
 ./services/ai/.venv/bin/python scripts/evaluate_benchmarks.py
 
-# Run k6 Concurrency Load Test (100 VUs)
-k6 run tests/load/k6_load_test.js
+# Optional: Deterministic Demo Reset in One Command
+bash scripts/demo_reset.sh
 ```
 
 ---

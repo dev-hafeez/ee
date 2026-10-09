@@ -166,7 +166,7 @@ For the FYP, Meta App Review was not pursued because:
 
 The following are **intentionally deferred** until after the FYP defense. They are architecturally possible but not started:
 
-1. **Multi-platform expansion**: TikTok, X, LinkedIn, YouTube — out of scope per SRDS §2.2. The `SocialProvider` interface is designed for extension.
+1. **Multi-platform expansion**: Additional networks beyond Instagram and Facebook are strictly out of scope per SRDS §2.2 and the build plan. The `SocialProvider` interface is architected for future extension.
 2. **SaaS billing & subscriptions**: Stripe integration, usage tiers, team workspaces.
 3. **D-Wave QPU adapter**: A `DWaveSampler` + `EmbeddingComposite` implementation to submit BQMs to actual quantum hardware (D-Wave Leap free tier). See stretch goal in Phase N plan.
 4. **Production Meta App Review**: Needed for public user access. Requires business registration and privacy policy review.

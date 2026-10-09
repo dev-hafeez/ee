@@ -148,3 +148,10 @@ alter table notification_preferences enable row level security;
 create policy notification_preferences_all on notification_preferences
   for all using (user_id = auth.uid() or is_admin())
   with check (user_id = auth.uid() or is_admin());
+
+-- ── 14. auth_attempts ────────────────────────────────────────────────────────
+alter table auth_attempts enable row level security;
+
+create policy auth_attempts_admin on auth_attempts
+  for all using (is_admin())
+  with check (is_admin());

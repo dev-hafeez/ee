@@ -22,6 +22,9 @@ BEGIN
 
   INSERT INTO notification_preferences (user_id) VALUES ('11111111-1111-1111-1111-111111111111'::uuid) ON CONFLICT DO NOTHING;
   INSERT INTO notification_preferences (user_id) VALUES ('22222222-2222-2222-2222-222222222222'::uuid) ON CONFLICT DO NOTHING;
+
+  -- Insert auth_attempts test record
+  INSERT INTO auth_attempts (ip, at) VALUES ('192.168.1.100'::inet, now());
 END $$;
 
 -- ── 2. Switch to 'authenticated' role (Simulating Supabase PostgREST client) ──
@@ -168,6 +171,12 @@ BEGIN
     RAISE EXCEPTION 'RLS VIOLATION: User B was able to view User A notification_preferences!';
   END IF;
 
+  -- Verify User B cannot select auth_attempts
+  SELECT count(*) INTO v_count FROM auth_attempts;
+  IF v_count <> 0 THEN
+    RAISE EXCEPTION 'RLS VIOLATION: User B was able to view auth_attempts records!';
+  END IF;
+
   -- ── Test Mutations by User B on User A data ──
   UPDATE posts SET caption = 'Hacked by B' WHERE id = v_post_a_id;
   DELETE FROM social_accounts WHERE id = v_account_a_id;
@@ -206,7 +215,13 @@ BEGIN
     RAISE EXCEPTION 'RLS FAILURE: Post caption did not match expected!';
   END IF;
 
-  RAISE NOTICE 'SUCCESS: All 13 tables verified with strict multi-tenant RLS isolation!';
+  -- Admin can view auth_attempts
+  SELECT count(*) INTO v_count FROM auth_attempts;
+  IF v_count <> 1 THEN
+    RAISE EXCEPTION 'RLS ADMIN FAILURE: Admin could not view auth_attempts (found %)!', v_count;
+  END IF;
+
+  RAISE NOTICE 'SUCCESS: All 14 tables verified with strict multi-tenant RLS isolation (including auth_attempts)!';
 END $$;
 
 RESET ROLE;
