@@ -157,6 +157,15 @@ def evaluate_optimizer_ground_truth():
         opt_true_multiplier_sum = sum(
             truth["slot_multipliers"].get(f"{s//24}_{s%24}", 1.0) for s in top_planted
         )
+
+        # Baseline: Greedy Top-K
+        v_s = compute_slot_scores(hist_posts)
+        t_g0 = time.perf_counter()
+        greedy_slots = baseline_greedy(v_s, k, min_gap, [])
+        t_greedy = time.perf_counter() - t_g0
+        g_overlap = len(set(greedy_slots).intersection(set(top_planted)))
+        g_achieved = sum(truth["slot_multipliers"].get(f"{s//24}_{s%24}", 1.0) for s in greedy_slots)
+        g_ratio = g_achieved / opt_true_multiplier_sum if opt_true_multiplier_sum > 0 else 0
         
         # Run QUBO optimizer
         start_t = time.perf_counter()
@@ -170,27 +179,30 @@ def evaluate_optimizer_ground_truth():
         duration = time.perf_counter() - start_t
         
         raw_slots = opt_res["primary_schedule"]["slots"]
-        chosen_slots = [s["day"] * 24 + s["hour"] for s in raw_slots]
-        overlap = len(set(chosen_slots).intersection(set(top_planted)))
+        sa_slots = [s["day"] * 24 + s["hour"] for s in raw_slots]
+        sa_overlap = len(set(sa_slots).intersection(set(top_planted)))
         
-        achieved_multiplier_sum = sum(
-            truth["slot_multipliers"].get(f"{s//24}_{s%24}", 1.0) for s in chosen_slots
+        sa_achieved = sum(
+            truth["slot_multipliers"].get(f"{s//24}_{s%24}", 1.0) for s in sa_slots
         )
-        ratio = achieved_multiplier_sum / opt_true_multiplier_sum if opt_true_multiplier_sum > 0 else 0
+        sa_ratio = sa_achieved / opt_true_multiplier_sum if opt_true_multiplier_sum > 0 else 0
         confidence = opt_res["primary_schedule"]["schedule_confidence"]
         
         results.append({
             "seed": seed,
             "posts_count": len(hist_posts),
-            "chosen_slots": chosen_slots,
-            "overlap_with_top_k": f"{overlap}/{k}",
-            "achieved_multiplier_sum": round(achieved_multiplier_sum, 2),
+            "greedy_slots": greedy_slots,
+            "greedy_overlap": f"{g_overlap}/{k}",
+            "greedy_ratio": round(g_ratio, 4),
+            "sa_slots": sa_slots,
+            "sa_overlap": f"{sa_overlap}/{k}",
+            "sa_achieved_multiplier_sum": round(sa_achieved, 2),
             "theoretical_opt_sum": round(opt_true_multiplier_sum, 2),
-            "ratio_to_optimum": round(ratio, 4),
+            "sa_ratio_to_optimum": round(sa_ratio, 4),
             "confidence": round(confidence, 3),
             "time_seconds": round(duration, 3)
         })
-        print(f"Seed {seed:4d} | Posts: {len(hist_posts):3d} | Overlap: {overlap}/{k} | Ratio to Opt: {ratio*100:.1f}% | Time: {duration:.2f}s")
+        print(f"Seed {seed:4d} | Greedy: {g_overlap}/{k} ({g_ratio*100:.1f}%) | SA: {sa_overlap}/{k} ({sa_ratio*100:.1f}%) | Conf: {confidence:.2f} | Time: {duration:.2f}s")
         
     return results
 
@@ -373,15 +385,34 @@ def evaluate_synthetic_backtest():
     print("NOTE: Test posts share the generator's planted truth table. This demonstrates pattern recovery, not causal uplift.")
     return backtest_res
 
+def _bench_run_acc(i):
+    dummy_posts = [{"posted_at": "2024-05-01T12:00:00Z", "perf_score": 0.8} for _ in range(100)]
+    return run_optimization(dummy_posts, posts_per_week=5, min_gap_hours=4, horizon_days=30)
+
 def evaluate_nfr_benchmarks():
     """Measures NFR targets specified in SRDS 4.1."""
     print("\n=== 4. NFR Measurements ===")
     
-    # 1. Optimizer 30-day horizon (SRDS 4.1.3: < 10s)
+    # 1. Optimizer timing across scopes (SRDS 4.1.3: 5 accounts, 30-day horizon < 10s)
+    from concurrent.futures import ProcessPoolExecutor
     dummy_posts = [{"posted_at": "2024-05-01T12:00:00Z", "perf_score": 0.8} for _ in range(100)]
+    v_s_bench = compute_slot_scores(dummy_posts)
+
+    # 1a. Single solve (reads=200, sweeps=500)
+    t0 = time.perf_counter()
+    solve_qubo(v_s_bench, posts_per_week=5, min_gap_hours=4, blackout_slots=[], num_reads=200, num_sweeps=500)
+    t_single = time.perf_counter() - t0
+
+    # 1b. 1 account with 30 bootstrap resamples (reads=10, sweeps=100)
     t0 = time.perf_counter()
     run_optimization(dummy_posts, posts_per_week=5, min_gap_hours=4, horizon_days=30)
     opt_time = time.perf_counter() - t0
+
+    # 1c. 5 accounts concurrent (ProcessPoolExecutor across CPU cores)
+    t0 = time.perf_counter()
+    with ProcessPoolExecutor(max_workers=5) as ex:
+        _ = list(ex.map(_bench_run_acc, range(5)))
+    t_5proc = time.perf_counter() - t0
     
     # 2. Caption Recommendation (SRDS 4.1.4: < 5s)
     top_posts = [
@@ -422,7 +453,9 @@ def evaluate_nfr_benchmarks():
     nfr_results = [
         {"nfr": "Dashboard load (SRDS 4.1.1)", "target": "< 3 s", "actual": "0.45 s (estimated SSR)", "notes": "SSR pre-rendered with React Server Components. Live browser benchmark requires running Next.js instance."},
         {"nfr": "REST API p95 concurrency (SRDS 4.1.2)", "target": "< 500 ms", "actual": "UNMEASURED", "notes": "k6 binary not found in environment; test script provided at tests/load/k6_load_test.js"},
-        {"nfr": "Optimizer: 30-day horizon, 1 account (SRDS 4.1.3)", "target": "< 10 s", "actual": f"{opt_time:.2f} s", "notes": "Simulated annealing on 168 slots with 30 bootstrap resamples. 5 accounts concurrent takes ~28s."},
+        {"nfr": "Optimizer: 1 single solve (200 reads, 500 sweeps)", "target": "< 2 s", "actual": f"{t_single:.2f} s", "notes": "Simulated annealing on 168-slot complete graph (14,028 quadratic couplings)"},
+        {"nfr": "Optimizer: 1 account (1 solve + 30 bootstraps)", "target": "< 5 s", "actual": f"{opt_time:.2f} s", "notes": "Includes 30 bootstrap iterations for schedule stability confidence (reads=10, sweeps=100)"},
+        {"nfr": "Optimizer: 5 accounts concurrent (SRDS 4.1.3)", "target": "< 10 s", "actual": f"{t_5proc:.2f} s", "notes": "ProcessPoolExecutor across CPU cores (155 total solves: 5 primary + 150 bootstraps)"},
         {"nfr": "Caption recommendation (mock) (SRDS 4.1.4)", "target": "< 5 s", "actual": f"{rec_time:.3f} s", "notes": "Mock provider. Live external API latency marked unmeasured (requires live API key)."},
         {"nfr": "Publish within scheduled time (SRDS 4.1.5)", "target": "< 60 s", "actual": publish_punctuality, "notes": "pg_cron /internal/tick dispatcher execution with atomic claim"},
         {"nfr": "Sync 500 posts (SRDS 4.1.6)", "target": "< 5 min", "actual": f"{ingest_time:.3f} s", "notes": "Batch normalization path. WAN sync estimate removed as unmeasured."}

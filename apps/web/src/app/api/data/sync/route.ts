@@ -16,6 +16,7 @@ export async function POST(request: Request) {
     const tickSecret = process.env.INTERNAL_TICK_SECRET;
     const isInternal = tickSecret && authHeader === `Bearer ${tickSecret}`;
 
+    let authenticatedUserId: string | undefined = undefined;
     if (!isInternal) {
       const supabase = await createClient();
       const {
@@ -25,20 +26,22 @@ export async function POST(request: Request) {
       if (!user) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
+      authenticatedUserId = user.id;
 
       // Verify the user owns the account
       const { data: account, error: accError } = await supabase
         .from('social_accounts')
         .select('id, user_id')
         .eq('id', accountId)
+        .eq('user_id', user.id)
         .single();
 
-      if (accError || !account || account.user_id !== user.id) {
+      if (accError || !account) {
         return NextResponse.json({ error: 'Account not found or access denied' }, { status: 403 });
       }
     }
 
-    const result = await syncAccountData(accountId);
+    const result = await syncAccountData(accountId, authenticatedUserId);
 
     return NextResponse.json(result);
   } catch (error: unknown) {

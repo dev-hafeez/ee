@@ -12,8 +12,8 @@ export interface CalendarPost {
   platform?: string;
 }
 
-export interface RecommendedSlot {
-  day: number;
+export interface CalendarRecommendedSlot {
+  day: string;
   hour: number;
   confidence: number;
 }
@@ -21,10 +21,11 @@ export interface RecommendedSlot {
 export function CalendarClient({
   initialPosts,
   _accountId,
+  recommendedSlots,
 }: {
   initialPosts: CalendarPost[];
   _accountId?: string;
-  recommendedSlots?: RecommendedSlot[];
+  recommendedSlots?: CalendarRecommendedSlot[];
 }) {
   const [posts, setPosts] = useState<CalendarPost[]>(initialPosts);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -102,22 +103,25 @@ export function CalendarClient({
       {/* Recommended Slots Banner */}
       <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-4">
         <div className="flex items-center gap-2 text-xs font-bold text-indigo-900">
-          <span>⚡ Quantum Recommended Windows This Week:</span>
+          <span>⚡ AI Recommended Windows This Week:</span>
         </div>
-        <div className="mt-2 flex flex-wrap gap-2 text-xs">
-          <span className="rounded-md bg-white px-2.5 py-1 font-semibold text-indigo-700 shadow-xs">
-            Tue 19:00 (94% conf)
-          </span>
-          <span className="rounded-md bg-white px-2.5 py-1 font-semibold text-indigo-700 shadow-xs">
-            Wed 18:00 (91% conf)
-          </span>
-          <span className="rounded-md bg-white px-2.5 py-1 font-semibold text-indigo-700 shadow-xs">
-            Thu 20:00 (88% conf)
-          </span>
-          <span className="rounded-md bg-white px-2.5 py-1 font-semibold text-indigo-700 shadow-xs">
-            Sun 17:00 (82% conf)
-          </span>
-        </div>
+        {recommendedSlots && recommendedSlots.length > 0 ? (
+          <div className="mt-2 flex flex-wrap gap-2 text-xs">
+            {recommendedSlots.map((slot, idx) => (
+              <span
+                key={idx}
+                className="rounded-md bg-white px-2.5 py-1 font-semibold text-indigo-700 shadow-xs"
+              >
+                {slot.day} {slot.hour.toString().padStart(2, '0')}:00 (
+                {Math.round(slot.confidence * 100)}% stability)
+              </span>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-1 text-xs text-indigo-700/80">
+            No optimization schedule generated yet. Run the optimizer from Recommendations to populate high-confidence windows.
+          </p>
+        )}
       </div>
 
       {/* Weekly View Columns */}

@@ -9,19 +9,19 @@ export interface SyncResult {
   durationMs: number;
 }
 
-export async function syncAccountData(accountId: string): Promise<SyncResult> {
+export async function syncAccountData(accountId: string, userId?: string): Promise<SyncResult> {
   const startTime = Date.now();
   const supabase = createAdminClient();
 
-  // 1. Fetch account
-  const { data: account, error: accError } = await supabase
-    .from('social_accounts')
-    .select('*')
-    .eq('id', accountId)
-    .single();
+  // 1. Fetch account (filtered by user_id if provided)
+  let query = supabase.from('social_accounts').select('*').eq('id', accountId);
+  if (userId) {
+    query = query.eq('user_id', userId);
+  }
+  const { data: account, error: accError } = await query.single();
 
   if (accError || !account) {
-    throw new Error(`Social account not found: ${accError?.message || accountId}`);
+    throw new Error(`Social account not found or access denied: ${accError?.message || accountId}`);
   }
 
   // 2. Decrypt token and get provider

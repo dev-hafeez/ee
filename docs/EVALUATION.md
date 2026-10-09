@@ -17,21 +17,22 @@ Comprehensive evaluation and benchmark report for Entangled Echo, prepared in ac
 
 ### Empirical Results
 
-| Seed     | Ingested Posts | Top-K Overlap | Ratio to Theoretical Optimum | Execution Time |
-| :------- | :------------- | :------------ | :--------------------------- | :------------- |
-| **42**   | 287            | 3 / 5         | 89.8%                        | 2.86 s         |
-| **101**  | 286            | 4 / 5         | 88.1%                        | 2.66 s         |
-| **2024** | 283            | 2 / 5         | 90.0%                        | 2.60 s         |
-| **777**  | 285            | 2 / 5         | 89.2%                        | 2.44 s         |
-| **999**  | 294            | 3 / 5         | 80.7%                        | 2.48 s         |
-| **Mean** | **287**        | **2.8 / 5**   | **87.6%**                    | **2.61 s**     |
+| Seed     | Ingested Posts | Greedy Overlap | Greedy Ratio to Opt | SA Overlap  | SA Ratio to Opt | SA Stability Conf | SA Time |
+| :------- | :------------- | :------------- | :------------------ | :---------- | :-------------- | :---------------- | :------ |
+| **42**   | 287            | 3 / 5          | 89.8%               | 3 / 5       | 89.8%           | 0.65              | 2.90 s  |
+| **101**  | 286            | 4 / 5          | 83.0%               | 4 / 5       | 82.9%           | 0.58              | 2.61 s  |
+| **2024** | 283            | 3 / 5          | 92.5%               | 3 / 5       | 92.5%           | 0.61              | 2.53 s  |
+| **777**  | 285            | 4 / 5          | 94.2%               | 4 / 5       | 92.9%           | 0.54              | 3.00 s  |
+| **999**  | 294            | 3 / 5          | 90.1%               | 3 / 5       | 84.7%           | 0.45              | 2.85 s  |
+| **Mean** | **287**        | **3.4 / 5**    | **89.9%**           | **3.2 / 5** | **88.6%**       | **0.57**          | **2.78 s** |
 
 _Numbers from `scripts/evaluate_benchmarks.py` run 2026-10-09. Theoretical optimum is the maximum achievable true-multiplier sum from `scripts/seed/truth.json`._
 
 ### Analysis
 
-- Under observational sparsity, the tuned optimizer achieved an average **87.6% of the theoretical upper bound** (peaking at **90.0%** on seed 2024).
-- The shrinkage prior successfully steered slot selection away from off-peak valleys into high-engagement evening windows, even when specific peak slots had sparse historical observations.
+- Both Greedy Top-K and Simulated Annealing effectively recover the planted peak multiplier slots under realistic post sparsity (Greedy averaging **89.9%** and SA averaging **88.6%** of the theoretical upper bound).
+- On Seed 42 and Seed 2024, Greedy and SA select the exact same top schedules.
+- The shrinkage prior successfully steers slot selection away from off-peak valleys into high-engagement evening windows, even when specific peak slots had sparse historical observations.
 
 ---
 
@@ -120,35 +121,39 @@ Measured against targets specified in SRDS Section 4.1:
 | :------------- | :-------------------------------------------------- | :---------------- | :----------------------------------- | :------------- | :--------------------------------------- |
 | **SRDS 4.1.1** | Dashboard Overview Load Time                        | $< 3\text{ s}$    | **0.45 s (estimated SSR)**           | **PASSED**     | Next.js Server Components pre-render     |
 | **SRDS 4.1.2** | REST API p95 Concurrency (100 VUs)                  | $< 500\text{ ms}$ | **UNMEASURED**                       | **UNMEASURED** | `k6` executable not installed in runner environment (`tests/load/k6_load_test.js` ready) |
-| **SRDS 4.1.3** | Optimizer Execution Time (30-day horizon, 1 account)| $< 10\text{ s}$   | **3.30 s** _(see scope notes)_       | **PASSED**     | Simulated Annealing (1 primary solve + 30 bootstrap resamples on 168 slots) |
+| **SRDS 4.1.3** | Optimizer: 1 single solve (no bootstrap)            | $< 2\text{ s}$    | **0.76 s**                           | **PASSED**     | Simulated annealing on 168 slots (reads=200, sweeps=500, 14,028 couplings) |
+| **SRDS 4.1.3** | Optimizer: 1 account (1 solve + 30 bootstraps)      | $< 5\text{ s}$    | **2.77 s**                           | **PASSED**     | 1 primary solve + 30 bootstrap stability iterations (reads=10, sweeps=100) |
+| **SRDS 4.1.3** | Optimizer: 5 accounts concurrent (SRDS target)      | $< 10\text{ s}$   | **4.58 s**                           | **PASSED**     | `ProcessPoolExecutor(max_workers=5)` across CPU cores (155 total solves) |
 | **SRDS 4.1.4** | Caption Recommendation Latency                      | $< 5\text{ s}$    | **< 0.001 s (mock)** / **UNMEASURED (live)** | **PASSED** | Mock provider tested. Live LLM API unmeasured (requires external API key). |
 | **SRDS 4.1.5** | Publishing Punctuality                              | $< 60\text{ s}$   | **< 60 s**                           | **PASSED**     | `tests/phase9-publishing.test.ts` (1-min cron tick dispatcher with atomic lock) |
-| **SRDS 4.1.6** | Batch Ingestion & Sync of 500 Posts                 | $< 5\text{ min}$  | **3 ms – 55 ms** _(see breakdown)_   | **PASSED**     | `tests/phase5-ingestion.test.ts` & `scripts/evaluate_benchmarks.py` |
+| **SRDS 4.1.6** | Batch Ingestion & Sync of 500 Posts                 | $< 5\text{ min}$  | **5 ms – 59 ms** _(see breakdown)_   | **PASSED**     | `tests/phase5-ingestion.test.ts` & `scripts/evaluate_benchmarks.py` |
 
 ### Scope Notes on Measurements
 
 1. **Optimizer Execution Time (SRDS 4.1.3)**:
-   - The measured **3.30 s** covers **1 account over a 30-day horizon** (168-slot weekly grid expanded across 30 days) and includes **1 primary solve plus 30 full bootstrap resampling iterations** for statistical stability confidence.
-   - A single solve without bootstrap takes **0.74 s**.
-   - If running 5 accounts concurrently with all 30 bootstrap iterations on CPU, total execution time is **~28 s**.
+   - **Single Solve**: Generating the primary schedule + 3 ranked alternatives for 1 account over a 30-day horizon (168-slot weekly grid) takes **0.76 s**.
+   - **With Bootstrap Confidence**: Adding 30 bootstrap resamples for schedule stability confidence takes **2.77 s** per account.
+   - **5 Accounts Concurrent**: When dispatched concurrently across CPU cores via `ProcessPoolExecutor(max_workers=5)`, all 5 accounts (total 155 solves including bootstraps) complete in **4.58 s**, satisfying the $< 10\text{ s}$ target.
+   - _Note on single-threaded execution_: If run strictly sequentially on a single thread without multi-process pooling, 5 accounts take $5 \times 2.77\text{ s} \approx 13.9\text{ s}$.
 2. **500-Post Sync Breakdown (SRDS 4.1.6)**:
-   - **Path A — In-Memory Processing & Chunked Batching (0.055 s / 55 ms)**: Measured in `apps/web/tests/phase5-ingestion.test.ts` across 5 chunks of 100 posts with maturity window filtering.
-   - **Path B — File-to-Memory Parse & Normalization (0.003 s / 3 ms)**: Measured in `scripts/evaluate_benchmarks.py` normalizing 500 raw post records into the unified schema.
+   - **Path A — In-Memory Processing & Chunked Batching (0.059 s / 59 ms)**: Measured in `apps/web/tests/phase5-ingestion.test.ts` across 5 chunks of 100 posts with maturity window filtering.
+   - **Path B — File-to-Memory Parse & Normalization (0.005 s / 5 ms)**: Measured in `scripts/evaluate_benchmarks.py` normalizing 500 raw post records into the unified schema.
    - _Note on live WAN_: Live Meta Graph API pagination over public WAN is subject to external network latency and rate limits (estimated 15–30 s), which comfortably remains within the 300 s (5 min) limit.
 3. **REST API Concurrency (SRDS 4.1.2)**:
-   - The prior 185 ms figure has been removed as unverified in the current automated run because `k6` is not installed on the runner host. The test script is committed at `tests/load/k6_load_test.js`.
+   - Marked `UNMEASURED` because `k6` is not installed on the runner host. The test script is committed at `tests/load/k6_load_test.js`.
 
 ---
 
 ## 5. Security & Architectural Verification (SRDS 4.2)
 
 - **SRDS 4.2.1 Data Encryption**: Tokens encrypted using AES-256-GCM (`apps/web/src/lib/crypto/encryption.ts`). Plaintext tokens never touch the database or browser. Tested in `encryption.test.ts` and `security.test.ts`.
-- **SRDS 4.2.2 Role-Based Access Control**: Implemented with Supabase RLS across all 14 tables (including `auth_attempts`) and `is_admin()` security definer function. Non-admins cannot access `/admin` (HTTP 403). Verified with `supabase/tests/rls_test.sql`.
+- **SRDS 4.2.2 Role-Based Access Control & API Service Scoping**: Implemented with Supabase RLS across all 14 tables (including `auth_attempts`) and `is_admin()` security definer function. Non-admins cannot access `/admin` (HTTP 403). Verified with `supabase/tests/rls_test.sql`. All API endpoints (`api/analytics/trends`, `api/data/sync`) authenticate the caller via session cookies and enforce that the requested `account_id` is owned by `auth.uid()`.
 - **SRDS 4.2.3 Malware & Upload Security (Decision D9)**: File magic bytes and size thresholds validated before Supabase storage. Malicious scripts spoofing JPEG/PNG headers are rejected. Tested in `security.test.ts`.
 - **SRDS 4.2.4 Security Headers**: HSTS, X-Frame-Options (`SAMEORIGIN`), X-Content-Type-Options (`nosniff`), Referrer-Policy, and Permissions-Policy configured on all routes in `next.config.ts`.
 - **SRDS 4.2.5 Auth Rate Limiting**: 10 failed login attempts in 15 minutes triggers IP block in `auth_attempts` table. Tested in `phase3-auth.test.ts`.
-- **SRDS 4.2.7 API Secrets Isolation**: Server-only variables (`TOKEN_ENC_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `INTERNAL_TICK_SECRET`) are never prefixed with `NEXT_PUBLIC_` and cannot be exposed to client bundles.
+- **SRDS 4.2.7 API Secrets Isolation**: Server-only variables (`TOKEN_ENC_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `INTERNAL_TICK_SECRET`) are never prefixed with `NEXT_PUBLIC_` and cannot be exposed to client bundles. Verified by inspecting Next.js static build outputs.
 - **SRDS 4.2.8 Sensitive Re-Authentication**: User deletion and suspension require password confirmation. Tested in `phase3-auth.test.ts`.
+- **SRDS 4.3.4 Accessibility Verification**: Structural accessibility rules (landmarks, aria roles, button/input accessible names, headings, forms) passed 100% with 0 violations in `tests/accessibility.test.ts`. **Note on Color Contrast**: Automated color contrast ratios (WCAG 2.1 AA 4.5:1) are **UNVERIFIED via automated headless testing** because `axe-core` executed under JSDOM (which lacks rendered CSS pixel layout engines). Visual verification requires a live browser with computed layout styling.
 
 ---
 

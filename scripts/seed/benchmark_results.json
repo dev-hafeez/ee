@@ -1,107 +1,152 @@
 {
-  "timestamp": "2026-10-09T18:12:06Z",
+  "timestamp": "2026-10-09T18:31:53Z",
   "ground_truth_eval": [
     {
       "seed": 42,
       "posts_count": 287,
-      "chosen_slots": [
+      "greedy_slots": [
         42,
         68,
         92,
         116,
         162
       ],
-      "overlap_with_top_k": "3/5",
-      "achieved_multiplier_sum": 14.46,
-      "theoretical_opt_sum": 16.1,
-      "ratio_to_optimum": 0.8981,
-      "confidence": 0.573,
-      "time_seconds": 2.859
-    },
-    {
-      "seed": 101,
-      "posts_count": 286,
-      "chosen_slots": [
+      "greedy_overlap": "3/5",
+      "greedy_ratio": 0.8981,
+      "sa_slots": [
         42,
-        55,
-        67,
-        92,
-        161
-      ],
-      "overlap_with_top_k": "4/5",
-      "achieved_multiplier_sum": 14.18,
-      "theoretical_opt_sum": 16.1,
-      "ratio_to_optimum": 0.8807,
-      "confidence": 0.567,
-      "time_seconds": 2.66
-    },
-    {
-      "seed": 2024,
-      "posts_count": 283,
-      "chosen_slots": [
-        43,
-        67,
+        68,
         92,
         138,
         162
       ],
-      "overlap_with_top_k": "2/5",
-      "achieved_multiplier_sum": 14.49,
+      "sa_overlap": "3/5",
+      "sa_achieved_multiplier_sum": 14.46,
       "theoretical_opt_sum": 16.1,
-      "ratio_to_optimum": 0.9,
-      "confidence": 0.573,
-      "time_seconds": 2.6
+      "sa_ratio_to_optimum": 0.8981,
+      "confidence": 0.653,
+      "time_seconds": 2.904
     },
     {
-      "seed": 777,
-      "posts_count": 285,
-      "chosen_slots": [
+      "seed": 101,
+      "posts_count": 286,
+      "greedy_slots": [
         42,
-        67,
-        93,
-        113,
-        162
-      ],
-      "overlap_with_top_k": "2/5",
-      "achieved_multiplier_sum": 14.36,
-      "theoretical_opt_sum": 16.1,
-      "ratio_to_optimum": 0.8919,
-      "confidence": 0.507,
-      "time_seconds": 2.44
-    },
-    {
-      "seed": 999,
-      "posts_count": 294,
-      "chosen_slots": [
-        43,
         52,
         67,
         92,
         161
       ],
-      "overlap_with_top_k": "3/5",
-      "achieved_multiplier_sum": 12.99,
+      "greedy_overlap": "4/5",
+      "greedy_ratio": 0.8304,
+      "sa_slots": [
+        42,
+        54,
+        67,
+        92,
+        161
+      ],
+      "sa_overlap": "4/5",
+      "sa_achieved_multiplier_sum": 13.35,
       "theoretical_opt_sum": 16.1,
-      "ratio_to_optimum": 0.8068,
-      "confidence": 0.487,
-      "time_seconds": 2.481
+      "sa_ratio_to_optimum": 0.8292,
+      "confidence": 0.58,
+      "time_seconds": 2.614
+    },
+    {
+      "seed": 2024,
+      "posts_count": 283,
+      "greedy_slots": [
+        42,
+        67,
+        92,
+        138,
+        162
+      ],
+      "greedy_overlap": "3/5",
+      "greedy_ratio": 0.9248,
+      "sa_slots": [
+        42,
+        67,
+        92,
+        138,
+        162
+      ],
+      "sa_overlap": "3/5",
+      "sa_achieved_multiplier_sum": 14.89,
+      "theoretical_opt_sum": 16.1,
+      "sa_ratio_to_optimum": 0.9248,
+      "confidence": 0.607,
+      "time_seconds": 2.532
+    },
+    {
+      "seed": 777,
+      "posts_count": 285,
+      "greedy_slots": [
+        42,
+        67,
+        92,
+        113,
+        161
+      ],
+      "greedy_overlap": "4/5",
+      "greedy_ratio": 0.9416,
+      "sa_slots": [
+        42,
+        67,
+        92,
+        113,
+        162
+      ],
+      "sa_overlap": "3/5",
+      "sa_achieved_multiplier_sum": 14.96,
+      "theoretical_opt_sum": 16.1,
+      "sa_ratio_to_optimum": 0.9292,
+      "confidence": 0.54,
+      "time_seconds": 2.997
+    },
+    {
+      "seed": 999,
+      "posts_count": 294,
+      "greedy_slots": [
+        43,
+        67,
+        92,
+        137,
+        161
+      ],
+      "greedy_overlap": "3/5",
+      "greedy_ratio": 0.9012,
+      "sa_slots": [
+        43,
+        57,
+        67,
+        92,
+        161
+      ],
+      "sa_overlap": "3/5",
+      "sa_achieved_multiplier_sum": 13.64,
+      "theoretical_opt_sum": 16.1,
+      "sa_ratio_to_optimum": 0.8472,
+      "confidence": 0.453,
+      "time_seconds": 2.853
     }
   ],
   "baseline_comparison": [
     {
       "method": "Random Feasible",
       "slots": [
-        8,
-        76,
-        109,
-        124,
-        157
+        14,
+        58,
+        107,
+        117,
+        128
       ],
-      "v_s_score": 2.0997,
-      "qubo_energy": -33.3497,
-      "true_mult_sum": 4.57,
+      "v_s_score": 1.8474,
+      "qubo_energy": -33.0974,
+      "true_mult_sum": 6.44,
       "feasible": true,
-      "time_ms": 0.09
+      "time_ms": 0.11
     },
     {
       "method": "Greedy Top-K",
@@ -112,11 +157,11 @@
         116,
         162
       ],
-      "v_s_score": 4.4802,
-      "qubo_energy": -35.7302,
+      "v_s_score": 4.4806,
+      "qubo_energy": -35.7306,
       "true_mult_sum": 14.46,
       "feasible": true,
-      "time_ms": 0.11
+      "time_ms": 0.21
     },
     {
       "method": "QUBO + Simulated Annealing (D-Wave)",
@@ -127,11 +172,11 @@
         113,
         162
       ],
-      "v_s_score": 4.4538,
-      "qubo_energy": -35.7038,
+      "v_s_score": 4.4543,
+      "qubo_energy": -35.7043,
       "true_mult_sum": 14.33,
       "feasible": true,
-      "time_ms": 740.33
+      "time_ms": 609.82
     },
     {
       "method": "Exact 0-1 ILP (scipy.optimize.milp)",
@@ -142,11 +187,11 @@
         116,
         162
       ],
-      "v_s_score": 4.4802,
-      "qubo_energy": -35.7302,
+      "v_s_score": 4.4806,
+      "qubo_energy": -35.7306,
       "true_mult_sum": 14.46,
       "feasible": true,
-      "time_ms": 21.63
+      "time_ms": 19.52
     }
   ],
   "synthetic_backtest": {
@@ -156,26 +201,26 @@
     "n_train": 188,
     "n_test": 48,
     "recommended_bucket": {
-      "n": 7,
-      "mean_score": 0.1751,
+      "n": 10,
+      "mean_score": 0.1679,
       "ci_95": [
-        0.1421,
-        0.2154
+        0.1447,
+        0.1991
       ]
     },
     "non_recommended_bucket": {
-      "n": 41,
-      "mean_score": 0.1214,
+      "n": 38,
+      "mean_score": 0.119,
       "ci_95": [
-        0.1097,
-        0.1342
+        0.1072,
+        0.1315
       ]
     },
     "score_difference": {
-      "mean_uplift": 0.0538,
+      "mean_uplift": 0.0493,
       "ci_95": [
-        0.0177,
-        0.0961
+        0.0214,
+        0.0827
       ]
     }
   },
@@ -193,10 +238,22 @@
       "notes": "k6 binary not found in environment; test script provided at tests/load/k6_load_test.js"
     },
     {
-      "nfr": "Optimizer: 30-day horizon, 1 account (SRDS 4.1.3)",
+      "nfr": "Optimizer: 1 single solve (200 reads, 500 sweeps)",
+      "target": "< 2 s",
+      "actual": "0.76 s",
+      "notes": "Simulated annealing on 168-slot complete graph (14,028 quadratic couplings)"
+    },
+    {
+      "nfr": "Optimizer: 1 account (1 solve + 30 bootstraps)",
+      "target": "< 5 s",
+      "actual": "2.77 s",
+      "notes": "Includes 30 bootstrap iterations for schedule stability confidence (reads=10, sweeps=100)"
+    },
+    {
+      "nfr": "Optimizer: 5 accounts concurrent (SRDS 4.1.3)",
       "target": "< 10 s",
-      "actual": "3.30 s",
-      "notes": "Simulated annealing on 168 slots with 30 bootstrap resamples. 5 accounts concurrent takes ~28s."
+      "actual": "4.58 s",
+      "notes": "ProcessPoolExecutor across CPU cores (155 total solves: 5 primary + 150 bootstraps)"
     },
     {
       "nfr": "Caption recommendation (mock) (SRDS 4.1.4)",
@@ -213,7 +270,7 @@
     {
       "nfr": "Sync 500 posts (SRDS 4.1.6)",
       "target": "< 5 min",
-      "actual": "0.003 s",
+      "actual": "0.005 s",
       "notes": "Batch normalization path. WAN sync estimate removed as unmeasured."
     }
   ]

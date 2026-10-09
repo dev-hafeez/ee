@@ -146,7 +146,7 @@ export function RecommendationsClient({
             hashtags: ['#quantum', '#creators', '#ai', '#growth'],
           },
           {
-            text: 'Behind the scenes: here is how algorithmic scheduling boosts organic impressions by 40% without extra effort.',
+            text: 'Behind the scenes: here is how algorithmic scheduling boosts organic impressions without extra effort.',
             hashtags: ['#contentstrategy', '#productivity', '#socialmedia', '#analytics'],
           },
           {
@@ -162,7 +162,7 @@ export function RecommendationsClient({
           hashtags: ['#quantum', '#creators', '#ai', '#growth'],
         },
         {
-          text: 'Behind the scenes: here is how algorithmic scheduling boosts organic impressions by 40%.',
+          text: 'Behind the scenes: here is how algorithmic scheduling boosts organic impressions.',
           hashtags: ['#contentstrategy', '#productivity', '#socialmedia'],
         },
       ]);

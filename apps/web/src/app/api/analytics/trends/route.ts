@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 // GET /api/analytics/trends
 export async function GET(request: Request) {
@@ -10,17 +11,45 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'accountId is required' }, { status: 400 });
   }
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const supabase = createClient(supabaseUrl, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+  // 1. Authenticate user session
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // Support internal tick or admin requests via secret header
+  const authHeader = request.headers.get('authorization');
+  const tickSecret = process.env.INTERNAL_TICK_SECRET;
+  const isInternal = tickSecret && authHeader === `Bearer ${tickSecret}`;
+
+  if (!user && !isInternal) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // 2. Multi-tenant authorization check: verify user owns the requested account
+  let queryClient = supabase;
+  if (user) {
+    const { data: account, error: accError } = await supabase
+      .from('social_accounts')
+      .select('id, user_id')
+      .eq('id', accountId)
+      .single();
+
+    if (accError || !account || account.user_id !== user.id) {
+      return NextResponse.json({ error: 'Account not found or access denied' }, { status: 403 });
+    }
+  } else if (isInternal) {
+    // Internal administrative task uses admin client
+    queryClient = createAdminClient() as any;
+  }
 
   try {
     // 1. KPI Cards (totals for the last 30 days vs previous 30 days)
-    // We can do this by aggregating metrics from posts in those date ranges.
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    // Quick naive approach: fetch all posts and their latest metrics
-    const { data: posts, error } = await supabase
+    // Query posts scoped to the verified account
+    const { data: posts, error } = await queryClient
       .from('posts')
       .select(
         'id, posted_at, perf_score, media_type, engagement_metrics(likes, comments, shares, saves, reach, views)'
