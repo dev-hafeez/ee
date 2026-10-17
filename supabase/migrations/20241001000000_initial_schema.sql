@@ -5,37 +5,7 @@
 create extension if not exists "uuid-ossp";
 create extension if not exists "pgcrypto";
 
--- Ensure standard Supabase roles exist (for standalone Postgres environments)
-do $$
-begin
-  if not exists (select from pg_roles where rolname = 'authenticated') then
-    create role authenticated nologin;
-  end if;
-  if not exists (select from pg_roles where rolname = 'anon') then
-    create role anon nologin;
-  end if;
-end
-$$;
 
--- Ensure auth schema exists (standard in Supabase; required for standalone Postgres test environments)
-create schema if not exists auth;
-
-create table if not exists auth.users (
-  id uuid primary key default gen_random_uuid(),
-  email text unique,
-  encrypted_password text,
-  email_confirmed_at timestamptz,
-  raw_user_meta_data jsonb default '{}'::jsonb,
-  raw_app_meta_data jsonb default '{}'::jsonb,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-
--- Fallback auth.uid() helper (in Supabase this is provided; in standalone PG it reads request.jwt.claim.sub)
-create or replace function auth.uid()
-returns uuid language sql stable as $$
-  select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid;
-$$;
 
 -- ── 1. Profiles (Extends auth.users) ──────────────────────────────────────────
 create table if not exists profiles (
@@ -247,14 +217,16 @@ select
 from social_accounts;
 
 -- ── Profiles & Preferences auto-provisioning trigger ─────────────────────────
-create or replace function handle_new_user()
-returns trigger language plpgsql security definer as $$
+create or replace function public.handle_new_user()
+returns trigger language plpgsql security definer
+set search_path = public
+as $$
 begin
-  insert into profiles (id, display_name, role)
+  insert into public.profiles (id, display_name, role)
   values (new.id, coalesce(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1)), 'user')
   on conflict (id) do nothing;
 
-  insert into notification_preferences (user_id)
+  insert into public.notification_preferences (user_id)
   values (new.id)
   on conflict (user_id) do nothing;
 
@@ -266,7 +238,7 @@ $$;
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
-  for each row execute function handle_new_user();
+  for each row execute function public.handle_new_user();
 
 -- Grant permissions to standard Supabase roles
 grant usage on schema public to authenticated, anon;

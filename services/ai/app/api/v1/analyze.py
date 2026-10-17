@@ -38,13 +38,19 @@ async def analyze_posts(request: AnalyzeRequest):
             if not post_id:
                 continue
 
+            sentiment_val = p.get("sentiment")
+            if isinstance(sentiment_val, dict):
+                sentiment_float = float(sentiment_val.get("compound", 0.0))
+            elif isinstance(sentiment_val, (int, float)):
+                sentiment_float = float(sentiment_val)
+            else:
+                sentiment_float = 0.0
+
             update_data = {
-                "perf_score": p.get("perf_score_percentile", 0.0),
+                "perf_score": float(p.get("perf_score_percentile", 0.0)),
                 "topics": p.get("topics", []),
-                "sentiment": p.get("sentiment", {})
+                "sentiment": sentiment_float
             }
-            # We don't persist hashtags separately if they aren't in the schema,
-            # but let's assume they are stored if needed, or we just keep topics and sentiment.
             supabase.table("posts").update(update_data).eq("id", post_id).execute()
 
     except Exception as e:

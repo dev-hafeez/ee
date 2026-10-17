@@ -85,8 +85,8 @@ export class MockProvider implements SocialProvider {
       shares,
       saves,
       reach,
-      views: reach * 1.2,
-      impressions: reach * 1.3,
+      views: Math.round(reach * 1.2),
+      impressions: Math.round(reach * 1.3),
       collectedAt: new Date().toISOString(),
     };
   }

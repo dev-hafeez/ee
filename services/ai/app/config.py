@@ -2,11 +2,17 @@
 Application settings — all values come from environment variables.
 No secrets or URLs are hardcoded.
 """
+from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+_ai_env = Path(__file__).resolve().parent.parent.parent / ".env"
+_web_env = Path(__file__).resolve().parent.parent.parent.parent.parent / "apps/web/.env.local"
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=(".env", "services/ai/.env", str(_ai_env), str(_web_env), "apps/web/.env.local"),
+        extra="ignore"
+    )
 
     # Service auth — Next.js BFF must send this in Authorization: Bearer <secret>
     ai_service_secret: str = ""
@@ -20,7 +26,12 @@ class Settings(BaseSettings):
 
     # Supabase (server-side only)
     supabase_url: str = ""
+    next_public_supabase_url: str = ""
     supabase_service_role_key: str = ""
+
+    @property
+    def effective_supabase_url(self) -> str:
+        return self.supabase_url or self.next_public_supabase_url
 
     # CORS — comma-separated list of allowed origins
     allowed_origins_str: str = "http://localhost:3000"

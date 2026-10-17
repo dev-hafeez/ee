@@ -66,13 +66,13 @@ export async function syncAccountData(accountId: string, userId?: string): Promi
           const metrics = await provider.fetchPostInsights(token, dbPost.external_id);
           return {
             post_id: dbPost.id,
-            likes: metrics.likes,
-            comments: metrics.comments,
-            shares: metrics.shares,
-            saves: metrics.saves,
-            reach: metrics.reach,
-            views: metrics.views ?? null,
-            impressions: metrics.impressions ?? null,
+            likes: Math.round(metrics.likes || 0),
+            comments: Math.round(metrics.comments || 0),
+            shares: Math.round(metrics.shares || 0),
+            saves: Math.round(metrics.saves || 0),
+            reach: Math.round(metrics.reach || 0),
+            views: metrics.views != null ? Math.round(metrics.views) : null,
+            impressions: metrics.impressions != null ? Math.round(metrics.impressions) : null,
             collected_at: metrics.collectedAt || new Date().toISOString(),
           };
         })
