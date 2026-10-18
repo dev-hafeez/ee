@@ -1,22 +1,28 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { SyncNowButton } from '@/components/social/SyncNowButton';
 
 export const dynamic = 'force-dynamic';
 
 export default async function DashboardOverviewPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
-  // If user is logged in, query user's accounts; otherwise fallback to admin for local dev demo
-  const db = user ? supabase : createAdminClient();
-
-  const { data: accounts } = await db
-    .from('social_accounts')
-    .select('id, platform, handle, last_sync, is_synthetic, status')
-    .limit(5);
+  // Concurrently fetch accounts and scheduled posts
+  const [
+    { data: accounts },
+    { data: scheduled },
+  ] = await Promise.all([
+    supabase
+      .from('social_accounts')
+      .select('id, platform, handle, last_sync, is_synthetic, status')
+      .limit(5),
+    supabase
+      .from('scheduled_posts')
+      .select('id, caption, scheduled_at, status')
+      .in('status', ['SCHEDULED', 'PUBLISHING'])
+      .order('scheduled_at', { ascending: true })
+      .limit(5),
+  ]);
 
   const primaryAccount = accounts && accounts.length > 0 ? accounts[0] : null;
 
@@ -33,7 +39,7 @@ export default async function DashboardOverviewPage() {
   }> = [];
 
   if (primaryAccount) {
-    const { data: posts } = await db
+    const { data: posts } = await supabase
       .from('posts')
       .select('id, caption, media_type, posted_at, perf_score, engagement_metrics(reach, likes)')
       .eq('account_id', primaryAccount.id)
@@ -67,60 +73,49 @@ export default async function DashboardOverviewPage() {
     }
   }
 
-  // Fetch scheduled posts
-  const { data: scheduled } = await db
-    .from('scheduled_posts')
-    .select('id, caption, scheduled_at, status')
-    .in('status', ['SCHEDULED', 'PUBLISHING'])
-    .order('scheduled_at', { ascending: true })
-    .limit(5);
-
   const scheduledCount = scheduled?.length || 0;
   const nextScheduled = scheduled && scheduled.length > 0 ? scheduled[0] : null;
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold tracking-tight text-[#373E3E]">Dashboard Overview</h1>
-            {primaryAccount?.is_synthetic && (
-              <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800">
-                ⚡ Demo Data
-              </span>
-            )}
           </div>
-          <p className="mt-1 text-sm text-zinc-500">
+          <p className="mt-1 text-sm text-zinc-600">
             {primaryAccount ? (
               <>
                 Connected to{' '}
-                <span className="font-semibold text-zinc-800">@{primaryAccount.handle}</span> (
-                {primaryAccount.platform})
-                {primaryAccount.last_sync && (
-                  <> &bull; Last synced: {new Date(primaryAccount.last_sync).toLocaleString()}</>
-                )}
+                <span className="font-semibold text-zinc-900">@{primaryAccount.handle}</span> (
+                <span className="capitalize">{primaryAccount.platform}</span>)
               </>
             ) : (
               'Connect an Instagram or Facebook account in Settings to start tracking engagement.'
             )}
           </p>
+          {primaryAccount && (
+            <div className="mt-3">
+              <SyncNowButton accountId={primaryAccount.id} lastSync={primaryAccount.last_sync} />
+            </div>
+          )}
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <Link
             href="/onboarding"
-            className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-50"
+            className="btn-outline px-4 py-2 text-xs font-semibold"
           >
             🧭 Onboarding
           </Link>
           <Link
             href="/recommendations"
-            className="rounded-lg border border-black bg-transparent px-4 py-2 text-xs font-semibold text-black transition-colors hover:bg-black hover:text-white"
+            className="btn-outline px-4 py-2 text-xs font-semibold"
           >
             Run Optimizer
           </Link>
           <Link
             href="/calendar"
-            className="rounded-lg border border-black bg-transparent px-4 py-2 text-xs font-semibold text-black transition-colors hover:bg-black hover:text-white"
+            className="btn-outline px-4 py-2 text-xs font-semibold"
           >
             Content Calendar
           </Link>
@@ -129,24 +124,24 @@ export default async function DashboardOverviewPage() {
 
       {/* 3-column card grid per owner layout preferences */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-        <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm transition-transform hover:scale-[1.01] hover:shadow-md">
+        <div className="card-elevation rounded-xl p-6">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-zinc-400 uppercase">Total Reach</span>
+            <span className="text-xs font-bold text-zinc-600 uppercase tracking-wider">Total Reach</span>
             <span className="text-base">📈</span>
           </div>
           <div className="mt-4 text-3xl font-extrabold text-[#373E3E]">
             {totalReach > 0 ? totalReach.toLocaleString() : '—'}
           </div>
-          <p className="mt-1 text-xs text-zinc-500">
+          <p className="mt-1 text-xs text-zinc-600">
             {totalLikes > 0
               ? `${totalLikes.toLocaleString()} total likes tracked`
               : 'Awaiting sync'}
           </p>
         </div>
 
-        <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm transition-transform hover:scale-[1.01] hover:shadow-md">
+        <div className="card-elevation rounded-xl p-6">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-zinc-400 uppercase">
+            <span className="text-xs font-bold text-zinc-600 uppercase tracking-wider">
               Avg Performance Score
             </span>
             <span className="text-base">⚡</span>
@@ -154,16 +149,16 @@ export default async function DashboardOverviewPage() {
           <div className="mt-4 text-3xl font-extrabold text-[#373E3E]">
             {avgPerfScore > 0 ? avgPerfScore.toFixed(3) : '—'}
           </div>
-          <p className="mt-1 text-xs text-zinc-500">Engagement-weighted / reach ratio</p>
+          <p className="mt-1 text-xs text-zinc-600">Engagement-weighted / reach ratio</p>
         </div>
 
-        <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm transition-transform hover:scale-[1.01] hover:shadow-md">
+        <div className="card-elevation rounded-xl p-6">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-zinc-400 uppercase">Scheduled Posts</span>
+            <span className="text-xs font-bold text-zinc-600 uppercase tracking-wider">Scheduled Posts</span>
             <span className="text-base">📅</span>
           </div>
           <div className="mt-4 text-3xl font-extrabold text-[#373E3E]">{scheduledCount}</div>
-          <p className="mt-1 text-xs text-indigo-600">
+          <p className="mt-1 text-xs font-medium text-indigo-700">
             {nextScheduled
               ? `Next publish: ${new Date(nextScheduled.scheduled_at).toLocaleDateString()} at ${new Date(nextScheduled.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
               : 'No posts currently queued'}
@@ -191,9 +186,9 @@ export default async function DashboardOverviewPage() {
                     {post.caption}
                   </p>
                 </div>
-                <div className="flex items-center gap-4 text-xs text-zinc-400">
+                <div className="flex items-center gap-4 text-xs text-zinc-600">
                   {post.perf_score !== null && (
-                    <span className="font-semibold text-zinc-700">
+                    <span className="font-semibold text-zinc-800">
                       Score: {post.perf_score.toFixed(2)}
                     </span>
                   )}
@@ -203,7 +198,7 @@ export default async function DashboardOverviewPage() {
             ))}
           </div>
         ) : (
-          <div className="py-8 text-center text-xs text-zinc-400">
+          <div className="py-8 text-center text-xs text-zinc-600">
             No posts found for this account. Run data sync from Settings to populate data.
           </div>
         )}

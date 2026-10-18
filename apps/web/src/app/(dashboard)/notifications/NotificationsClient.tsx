@@ -94,20 +94,20 @@ export function NotificationsClient({
       <div className="flex gap-4 border-b border-zinc-200 text-xs font-semibold">
         <button
           onClick={() => setFilter('all')}
-          className={`border-b-2 pb-2 transition ${
+          className={`border-b-2 pb-2 font-medium transition ${
             filter === 'all'
-              ? 'border-[#373E3E] text-[#373E3E]'
-              : 'border-transparent text-zinc-400 hover:text-zinc-700'
+              ? 'border-[#373E3E] font-bold text-[#373E3E]'
+              : 'border-transparent text-zinc-600 hover:text-zinc-900'
           }`}
         >
           All ({notifications.length})
         </button>
         <button
           onClick={() => setFilter('unread')}
-          className={`border-b-2 pb-2 transition ${
+          className={`border-b-2 pb-2 font-medium transition ${
             filter === 'unread'
-              ? 'border-[#373E3E] text-[#373E3E]'
-              : 'border-transparent text-zinc-400 hover:text-zinc-700'
+              ? 'border-[#373E3E] font-bold text-[#373E3E]'
+              : 'border-transparent text-zinc-600 hover:text-zinc-900'
           }`}
         >
           Unread ({notifications.filter((n) => !n.is_read).length})
@@ -115,7 +115,7 @@ export function NotificationsClient({
       </div>
 
       {/* List */}
-      <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
+      <div className="card-elevation rounded-xl p-6">
         {filtered.length > 0 ? (
           <div className="divide-y divide-zinc-100">
             {filtered.map((item) => (
@@ -129,11 +129,11 @@ export function NotificationsClient({
                   <span className="text-xl">{getIcon(item.type)}</span>
                   <div>
                     <p
-                      className={`text-xs ${!item.is_read ? 'font-bold text-zinc-900' : 'text-zinc-700'}`}
+                      className={`text-xs ${!item.is_read ? 'font-bold text-zinc-900' : 'text-zinc-800'}`}
                     >
                       {item.message}
                     </p>
-                    <span className="mt-1 block text-[10px] text-zinc-400">
+                    <span className="mt-1 block text-[10px] font-medium text-zinc-600">
                       {new Date(item.sent_at).toLocaleString()}
                     </span>
                   </div>
@@ -146,7 +146,7 @@ export function NotificationsClient({
             ))}
           </div>
         ) : (
-          <div className="py-12 text-center text-xs text-zinc-400">
+          <div className="py-12 text-center text-xs text-zinc-600 font-medium">
             No notifications to display.
           </div>
         )}

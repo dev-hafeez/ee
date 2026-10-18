@@ -52,17 +52,6 @@ export async function updateSession(request: NextRequest) {
   const isAdminRoute = pathname.startsWith('/admin');
 
   if (!user && (isProtectedAppRoute || isAdminRoute)) {
-    // In mock/seed offline mode with placeholder supabase, allow development preview if DATA_MODE is mock/seed
-    const dataMode = process.env.DATA_MODE || 'seed';
-    const isPlaceholderSupabase =
-      !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-      process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder');
-
-    if (isPlaceholderSupabase && (dataMode === 'mock' || dataMode === 'seed')) {
-      // In offline mock mode without live Supabase credentials, pass through for UI development
-      return supabaseResponse;
-    }
-
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     url.searchParams.set('redirectTo', pathname);
@@ -71,22 +60,37 @@ export async function updateSession(request: NextRequest) {
 
   // If user is authenticated, check for suspension and admin permissions
   if (user) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role, suspended')
-      .eq('id', user.id)
-      .single();
+    const sessionCheckCookie = request.cookies.get('ee_session_check')?.value;
+    const isSessionCheckValid = sessionCheckCookie === `${user.id}:ok`;
 
-    if (profile?.suspended) {
-      await supabase.auth.signOut();
-      const url = request.nextUrl.clone();
-      url.pathname = '/login';
-      url.searchParams.set('error', 'suspended');
-      return NextResponse.redirect(url);
-    }
+    // Always check for admin routes, but use short-lived cached cookie for standard navigation
+    if (isAdminRoute || !isSessionCheckValid) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role, suspended')
+        .eq('id', user.id)
+        .single();
 
-    if (isAdminRoute && profile?.role !== 'admin') {
-      return new NextResponse('Forbidden: Administrator access required', { status: 403 });
+      if (profile?.suspended) {
+        await supabase.auth.signOut();
+        const url = request.nextUrl.clone();
+        url.pathname = '/login';
+        url.searchParams.set('error', 'suspended');
+        supabaseResponse.cookies.delete('ee_session_check');
+        return NextResponse.redirect(url);
+      }
+
+      if (isAdminRoute && profile?.role !== 'admin') {
+        return new NextResponse('Forbidden: Administrator access required', { status: 403 });
+      }
+
+      // Cache validation for 60 seconds on standard navigation to avoid 500ms waterfalls
+      supabaseResponse.cookies.set('ee_session_check', `${user.id}:ok`, {
+        path: '/',
+        maxAge: 60,
+        httpOnly: true,
+        sameSite: 'lax',
+      });
     }
   }
 

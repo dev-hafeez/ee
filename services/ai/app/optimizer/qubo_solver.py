@@ -47,42 +47,45 @@ def compute_slot_scores(historical_posts: list[dict[str, Any]], k: float = setti
     mean_s[nonzero] = scores[nonzero] / counts[nonzero]
 
     # Calculate marginals
-    day_marginal = np.zeros(7)
-    for d in range(7):
-        d_scores = scores[d*24:(d+1)*24]
-        d_counts = counts[d*24:(d+1)*24]
-        if d_counts.sum() > 0:
-            day_marginal[d] = d_scores.sum() / d_counts.sum()
+    scores_2d = scores.reshape((7, 24))
+    counts_2d = counts.reshape((7, 24))
 
-    hour_marginal = np.zeros(24)
-    for h in range(24):
-        h_scores = scores[h::24]
-        h_counts = counts[h::24]
-        if h_counts.sum() > 0:
-            hour_marginal[h] = h_scores.sum() / h_counts.sum()
+    day_s, day_c = scores_2d.sum(axis=1), counts_2d.sum(axis=1)
+    day_marginal = np.divide(day_s, day_c, out=np.zeros(7), where=day_c > 0)
 
-    global_mean = scores.sum() / counts.sum() if counts.sum() > 0 else 0.0
+    hour_s, hour_c = scores_2d.sum(axis=0), counts_2d.sum(axis=0)
+    hour_marginal = np.divide(hour_s, hour_c, out=np.zeros(24), where=hour_c > 0)
+
+    global_mean = float(scores.sum() / counts.sum()) if counts.sum() > 0 else 0.0
 
     day_marginal[day_marginal == 0] = global_mean
     hour_marginal[hour_marginal == 0] = global_mean
 
-    v_s = np.zeros(168)
-    for d in range(7):
-        for h in range(24):
-            idx = d * 24 + h
-            prior = (day_marginal[d] + hour_marginal[h]) / 2.0
-            n = counts[idx]
-            v_s[idx] = (n * mean_s[idx] + k * prior) / (n + k)
+    prior = ((day_marginal[:, np.newaxis] + hour_marginal[np.newaxis, :]) / 2.0).flatten()
+    v_s = (counts * mean_s + k * prior) / (counts + k)
 
     # Normalize to [0, 1]
-    max_v = v_s.max()
-    min_v = v_s.min()
+    max_v = float(v_s.max())
+    min_v = float(v_s.min())
     if max_v - min_v > 1e-6:
         v_s = (v_s - min_v) / (max_v - min_v)
     else:
         v_s = v_s / max_v if max_v > 1e-06 else np.zeros(168)
 
     return v_s
+
+def build_qubo_base_quadratic(valid_slots: list[int], min_gap_hours: int, A: float, B: float) -> dict[tuple[int, int], float]:
+    """Pre-computes invariant off-diagonal quadratic interaction penalties in a single pass."""
+    Q_quad = {}
+    n = len(valid_slots)
+    for i in range(n):
+        u = valid_slots[i]
+        for j in range(i + 1, n):
+            w = valid_slots[j]
+            diff = abs(u - w)
+            dist = min(diff, 168 - diff)
+            Q_quad[(u, w)] = 2.0 * A + (B if dist < min_gap_hours else 0.0)
+    return Q_quad
 
 def solve_qubo(v_s: np.ndarray,
                posts_per_week: int,
@@ -91,7 +94,9 @@ def solve_qubo(v_s: np.ndarray,
                num_reads: int = settings.optimizer_num_reads,
                num_sweeps: int = 500,
                beta_range: list[float] | None = None,
-               beta_schedule_type: str = "linear") -> list[dict[str, Any]]:
+               beta_schedule_type: str = "linear",
+               base_quadratic: dict[tuple[int, int], float] | None = None,
+               sampler: SimulatedAnnealingSampler | None = None) -> list[dict[str, Any]]:
     if blackout_slots is None:
         blackout_slots = []
 
@@ -101,43 +106,24 @@ def solve_qubo(v_s: np.ndarray,
         raise ValueError("Not enough valid slots to schedule the requested number of posts.")
 
     # QUBO: min -sum(v_s * x_s) + A(sum(x_s) - K)^2 + B sum(conflict x_i x_j)
-    # Scaled penalty: A must exceed max_v (1.0) to make violating cardinality unprofitable,
-    # but not excessively large so single Metropolis spin-flips during annealing can traverse feasible states.
     max_v = float(v_s.max()) if len(v_s) > 0 else 1.0
     A = max(1.25 * max_v, 1.0)
     B = max(2.0 * max_v, 1.5)
 
-    # Build Q matrix for dimod
-    Q = {}
+    # Fast copy of base quadratic penalties or single-pass generation
+    if base_quadratic is not None:
+        Q = dict(base_quadratic)
+    else:
+        Q = build_qubo_base_quadratic(valid_slots, min_gap_hours, A, B)
 
-    # A(sum x_s - K)^2 = A [ sum x_s^2 + 2 sum_{i<j} x_i x_j - 2K sum x_s + K^2 ]
-    # Since x_s in {0,1}, x_s^2 = x_s
     # Linear terms: -v_i * x_i + A * x_i - 2 * A * K * x_i
     for i in valid_slots:
-        Q[(i, i)] = -v_s[i] + A - 2 * A * posts_per_week
-
-    # Quadratic terms for the constraint A(sum x_s - K)^2 -> 2 * A * x_i * x_j
-    for i in range(len(valid_slots)):
-        for j in range(i + 1, len(valid_slots)):
-            u = valid_slots[i]
-            w = valid_slots[j]
-            Q[(u, w)] = 2 * A
-
-    # Conflicts: same day or wrap-around distance closer than min_gap_hours
-    for i in range(len(valid_slots)):
-        for j in range(i + 1, len(valid_slots)):
-            u = valid_slots[i]
-            w = valid_slots[j]
-            diff1 = abs(u - w)
-            diff2 = 168 - diff1
-            dist = min(diff1, diff2)
-
-            if dist < min_gap_hours:
-                # Add B to the quadratic penalty
-                Q[(u, w)] = Q.get((u, w), 0) + B
+        Q[(i, i)] = -v_s[i] + A - 2.0 * A * posts_per_week
 
     bqm = dimod.BinaryQuadraticModel.from_qubo(Q)
-    sampler = SimulatedAnnealingSampler()
+    if sampler is None:
+        sampler = SimulatedAnnealingSampler()
+
     if beta_range is None:
         beta_range = [0.01, 20.0]
 
@@ -212,7 +198,24 @@ def run_optimization(
         logger.warning("Cold start: not enough historical data.")
 
     v_s = compute_slot_scores(historical_posts)
-    schedules = solve_qubo(v_s, posts_per_week, min_gap_hours, converted_blackouts)
+
+    valid_slots = [i for i in range(168) if i not in converted_blackouts]
+    max_v = float(v_s.max()) if len(v_s) > 0 else 1.0
+    A = max(1.25 * max_v, 1.0)
+    B = max(2.0 * max_v, 1.5)
+
+    # Pre-build invariant quadratic interaction terms and persistent sampler once
+    base_quadratic = build_qubo_base_quadratic(valid_slots, min_gap_hours, A, B)
+    shared_sampler = SimulatedAnnealingSampler()
+
+    schedules = solve_qubo(
+        v_s,
+        posts_per_week,
+        min_gap_hours,
+        converted_blackouts,
+        base_quadratic=base_quadratic,
+        sampler=shared_sampler
+    )
 
     if not schedules:
         return {"error": "No feasible schedule found."}
@@ -239,6 +242,8 @@ def run_optimization(
                     num_reads=10,
                     num_sweeps=100,
                     beta_range=[0.05, 15.0],
+                    base_quadratic=base_quadratic,
+                    sampler=shared_sampler,
                 )
                 if boot_schedules:
                     primary = boot_schedules[0]["slots"]
@@ -266,9 +271,9 @@ def run_optimization(
             schedule_confidence = 0.0
 
         sched_data = {
-            "slots": [{"day": s // 24, "hour": s % 24, "confidence": conf} for s, conf in zip(slots, slot_confidences, strict=False)],
-            "schedule_confidence": schedule_confidence,
-            "expected_score": sched["score"]
+            "slots": [{"day": int(s // 24), "hour": int(s % 24), "confidence": round(float(conf), 4)} for s, conf in zip(slots, slot_confidences, strict=False)],
+            "schedule_confidence": round(float(schedule_confidence), 4),
+            "expected_score": round(float(sched["score"]), 4)
         }
 
         if i == 0:

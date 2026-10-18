@@ -86,13 +86,21 @@
 
 ## Active & Upcoming Roadmap (Milestone 2.0)
 
-- [ ] **Phase 15: Production Cloud Deployment & Region Colocation**
+- [x] **Phase 15: Production Authenticity & High-Contrast Design (Owner Feedback Remediation)**
+  - Eliminated white-on-white text bug; tokenized CSS variable system with primary `#373E3E`.
+  - Real browser contrast audit (Playwright + Chromium `/snap/bin/chromium` + `axe-core`) across all 12 routes with 0 violations.
+  - Live data sync with "Last synced at", "Sync Now", API rate limiting, and 24-48h delayed metrics notices.
+  - Profile link paste using Meta Business Discovery (public data only, zero scraping) with error guidance for personal accounts.
+  - CSV and Instagram Data Export upload feeding into official normalization pipeline (`normalizePost` -> `posts`).
+  - Cross-user anonymized benchmarks ($K \ge 20$ accounts) with opt-in setting, privacy policy, and "Not enough data yet" guardrail.
+
+- [ ] **Phase 16: Production Cloud Deployment & Region Colocation**
   - Deploy Next.js to Vercel and FastAPI container to Render / Fly.io.
   - Colocate instances in the same AWS region as Supabase to eliminate cross-region roundtrips.
   - Set up external cron pinger for `/api/internal/tick`.
 
-- [ ] **Phase 16: Next.js 16 Proxy Migration**
+- [ ] **Phase 17: Next.js 16 Proxy Migration**
   - Migrate from deprecated `middleware.ts` to Next.js canary `proxy` architecture via `@next/codemod`.
 
-- [ ] **Phase 17: Multi-Account Cross-Posting Coordination**
+- [ ] **Phase 18: Multi-Account Cross-Posting Coordination**
   - Add cross-platform collision avoidance to the QUBO solver when an agency manages linked Instagram and Facebook accounts simultaneously.

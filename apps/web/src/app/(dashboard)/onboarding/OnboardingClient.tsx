@@ -143,14 +143,14 @@ export function OnboardingClient() {
                     ? 'bg-[#373E3E] text-white shadow-md'
                     : isCompleted
                       ? 'bg-emerald-100 text-emerald-800'
-                      : 'bg-zinc-100 text-zinc-500 group-hover:bg-zinc-200'
+                      : 'bg-zinc-100 text-zinc-700 group-hover:bg-zinc-200'
                 }`}
               >
                 {isCompleted ? '✓' : s.id}
               </div>
               <span
                 className={`text-[11px] font-semibold transition ${
-                  isActive ? 'text-[#373E3E]' : 'text-zinc-400 group-hover:text-zinc-600'
+                  isActive ? 'text-[#373E3E]' : 'text-zinc-600 group-hover:text-zinc-900'
                 }`}
               >
                 {s.title}
@@ -172,22 +172,22 @@ export function OnboardingClient() {
               <h2 className="mt-1 text-xl font-bold text-[#373E3E]">{step.headline}</h2>
             </div>
           </div>
-          <span className="text-xs font-semibold text-zinc-400">
+          <span className="text-xs font-bold text-zinc-600">
             Step {step.id} of {STEPS.length}
           </span>
         </div>
 
-        <p className="mt-4 text-sm leading-relaxed text-zinc-600">{step.description}</p>
+        <p className="mt-4 text-sm leading-relaxed text-zinc-700">{step.description}</p>
 
         {/* Feature Highlights */}
         <div className="mt-6 rounded-lg bg-zinc-50 p-5">
-          <h3 className="text-xs font-bold tracking-wider text-zinc-500 uppercase">
+          <h3 className="text-xs font-bold tracking-wider text-zinc-700 uppercase">
             Architectural Guarantees
           </h3>
           <ul className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
             {step.details.map((detail, idx) => (
               <li key={idx} className="flex items-center gap-2 text-xs text-zinc-700">
-                <span className="font-bold text-emerald-600">✓</span>
+                <span className="font-bold text-emerald-800">✓</span>
                 <span>{detail}</span>
               </li>
             ))}

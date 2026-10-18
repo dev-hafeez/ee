@@ -12,8 +12,53 @@ export async function connectSocialAccount(platform: SocialPlatform) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const userId = user?.id || '00000000-0000-0000-0000-000000000001';
+  if (!user) {
+    return { error: 'You must be logged in to connect accounts.' };
+  }
+
+  const userId = user.id;
   const dataMode = process.env.DATA_MODE || 'seed';
+
+  // Safety net: verify profile row exists before inserting social_accounts
+  const { data: existingProfile } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (!existingProfile) {
+    // Attempt server-side safety net profile provisioning
+    const { createAdminClient } = await import('@/lib/supabase/admin');
+    const admin = createAdminClient();
+    const displayName =
+      user.user_metadata?.full_name ||
+      user.user_metadata?.display_name ||
+      user.email?.split('@')[0] ||
+      'User';
+
+    const { error: profileError } = await admin
+      .from('profiles')
+      .upsert(
+        {
+          id: userId,
+          display_name: displayName,
+          role: 'user',
+          timezone: 'UTC',
+        },
+        { onConflict: 'id' }
+      );
+
+    if (profileError) {
+      return {
+        error: `User profile is missing and could not be provisioned: ${profileError.message}. Please complete profile setup before connecting social accounts.`,
+      };
+    }
+
+    // Also ensure notification preferences exist
+    await admin
+      .from('notification_preferences')
+      .upsert({ user_id: userId }, { onConflict: 'user_id' });
+  }
 
   if (dataMode === 'mock' || dataMode === 'seed') {
     // Mock / seed connection: generate credentials and encrypt
@@ -37,6 +82,12 @@ export async function connectSocialAccount(platform: SocialPlatform) {
     );
 
     if (error) {
+      if (error.code === '23503' || error.message?.includes('social_accounts_user_id_fkey')) {
+        return {
+          error:
+            'User profile does not exist in the database (FK violation: social_accounts_user_id_fkey). Please ensure your profile is initialized before connecting accounts.',
+        };
+      }
       return { error: error.message };
     }
 

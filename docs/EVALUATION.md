@@ -144,7 +144,38 @@ Measured against targets specified in SRDS Section 4.1:
 
 ---
 
-## 5. Security & Architectural Verification (SRDS 4.2)
+## 5. Sentiment Model Training Evaluation: Custom Classifier vs. VADER Baseline
+
+### Methodology
+
+- **Dataset**: Sanders Twitter Sentiment Corpus ($N = 3,424$ hand-labeled human tweets across positive, neutral, and negative classes).
+- **Integrity**: Evaluated on real human social media data. Not trained on the synthetic generator's output (avoids circular bias).
+- **Split**: 80% stratified training split ($N = 2,739$), 20% held-out test split ($N = 685$, fixed random seed 42).
+- **Models Compared**:
+  1. **Custom Model**: Sublinear TF-IDF (5,000 features, unigrams + bigrams) + Balanced Logistic Regression ($C=1.5$).
+  2. **VADER Baseline**: Standard compound polarity rule ($\ge 0.05 \rightarrow$ positive, $\le -0.05 \rightarrow$ negative, else neutral).
+
+### Empirical Results on Held-Out Test Split ($N = 685$)
+
+| Metric / Class | Custom TF-IDF + LogReg | VADER Baseline | Delta ($\Delta$) |
+| :--- | :---: | :---: | :---: |
+| **Overall Accuracy** | **74.31%** | **51.82%** | **+22.49%** |
+| **Macro Average F1** | **0.6698** | **0.4958** | **+0.1740** |
+| **Macro Precision** | 0.6500 | 0.5233 | +0.1267 |
+| **Macro Recall** | 0.7000 | 0.6033 | +0.0967 |
+| Negative F1 | 0.61 (P: 0.54, R: 0.70) | 0.48 (P: 0.43, R: 0.53) | +0.13 |
+| Neutral F1 | 0.82 (P: 0.87, R: 0.78) | 0.59 (P: 0.85, R: 0.45) | +0.23 |
+| Positive F1 | 0.57 (P: 0.53, R: 0.62) | 0.43 (P: 0.29, R: 0.83) | +0.14 |
+
+### Analysis
+
+1. **Why VADER underperforms (51.82%)**: Rule-based VADER was developed primarily for short conversational feedback with heavy sentiment punctuation. On modern social media brand and product posts, it suffers from severe false positives: its positive precision is only 0.29 because it mislabels neutral product announcements containing common words as strongly positive. VADER also misclassifies 55% of neutral posts (recall 0.45).
+2. **Why the custom classifier succeeds (74.31%)**: By fitting n-gram frequencies with inverse document frequency dampening, the trained classifier accurately isolates neutral announcements (F1: 0.82) while reliably detecting negative customer sentiment (recall: 0.70).
+3. **Artifact Persistence**: Model pipeline serialized to `services/ai/app/analysis/sentiment_classifier.joblib` and integrated alongside VADER.
+
+---
+
+## 6. Security & Architectural Verification (SRDS 4.2)
 
 - **SRDS 4.2.1 Data Encryption**: Tokens encrypted using AES-256-GCM (`apps/web/src/lib/crypto/encryption.ts`). Plaintext tokens never touch the database or browser. Tested in `encryption.test.ts` and `security.test.ts`.
 - **SRDS 4.2.2 Role-Based Access Control & API Service Scoping**: Implemented with Supabase RLS across all 14 tables (including `auth_attempts`) and `is_admin()` security definer function. Non-admins cannot access `/admin` (HTTP 403). Verified with `supabase/tests/rls_test.sql`. All API endpoints (`api/analytics/trends`, `api/data/sync`) authenticate the caller via session cookies and enforce that the requested `account_id` is owned by `auth.uid()`.
@@ -157,7 +188,7 @@ Measured against targets specified in SRDS Section 4.1:
 
 ---
 
-## 6. System Limitations
+## 7. System Limitations
 
 1. **Cold-Start Threshold**: Accounts with fewer than 20 historical posts have insufficient slot coverage and fall back to the empirical prior with an explicit `low_data` UI badge.
 2. **Meta Graph API Constraints (Decision D7)**: Competitor metrics are limited to public data via Meta Business Discovery API (followers, media count, public likes/comments). Competitor reach and impressions are restricted by Meta.

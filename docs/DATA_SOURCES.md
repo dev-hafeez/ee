@@ -26,10 +26,18 @@ Tracks every external dataset used in the project, per build plan rules.
 - **What is NOT available**: reach, impressions of competitor posts
 - **License**: Subject to Meta Platform Terms
 
-## 4. Supplementary Datasets
+## 4. Public Sentiment Training Benchmark Dataset
 
-- **Status**: None ingested. External Kaggle / Hugging Face datasets were examined but excluded because none contain single-account posting-time ground truth with complete engagement snapshots necessary to validate the QUBO optimizer.
+- **Dataset**: Sanders Twitter Sentiment Corpus (Niek Sanders)
+- **Source**: `https://raw.githubusercontent.com/zfz/twitter_corpus/master/full-corpus.csv`
+- **Cached Location**: `services/ai/data/sanders_twitter_sentiment.csv`
+- **Trained Model Artifact**: `services/ai/app/analysis/sentiment_classifier.joblib`
+- **Size & Distribution**: 5,113 total tweets; 3,424 valid sentiment-labeled texts (519 positive, 572 negative, 2,333 neutral). Discarded 1,689 'irrelevant' non-sentiment rows.
+- **Split**: 80% stratified training split ($N = 2,739$), 20% held-out test split ($N = 685$).
+- **License**: Public academic / open research benchmark license.
+- **Methodological Integrity**: Trained strictly on real, hand-labeled human tweets. **Not** trained on the synthetic generator's data, strictly avoiding circular evaluation.
+- **Evaluation**: Evaluated on the held-out test set against the rule-based VADER baseline; full accuracy and macro F1 numbers recorded in `docs/EVALUATION.md`.
 
 ---
 
-_Last updated: Phase N4 documentation reconciliation (2026-10-07)._
+_Last updated: Scope addition reconciliation (2026-10-17)._

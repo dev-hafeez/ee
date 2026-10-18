@@ -1,26 +1,115 @@
 @import 'tailwindcss';
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Brand Primary */
+  --primary: #373E3E;
+  --primary-hover: #232828;
+  --primary-foreground: #ffffff;
+
+  /* Surfaces & Backgrounds - Clean, warm Light Theme */
+  --background: #f8fafc;
+  --surface: #ffffff;
+  --surface-card: #ffffff;
+  --surface-card-hover: #fcfcfc;
+  --surface-muted: #f1f5f9;
+
+  /* Typography / High Contrast Text (WCAG AA > 4.5:1, AAA > 7:1 against light) */
+  --foreground: #18181b;         /* Zinc 900: 13.6:1 contrast on white */
+  --foreground-muted: #3f3f46;   /* Zinc 700: 7.0:1 contrast on white */
+  --foreground-subtle: #52525b;  /* Zinc 600: 5.4:1 contrast on white */
+
+  /* Borders & Outlines */
+  --border: #e4e4e7;             /* Zinc 200 */
+  --border-strong: #373E3E;      /* Project UI convention: dark border */
+
+  /* Semantic Feedback with WCAG Compliant Contrast */
+  --success: #15803d;
+  --success-bg: #f0fdf4;
+  --warning: #b45309;
+  --warning-bg: #fffbeb;
+  --error: #b91c1c;
+  --error-bg: #fef2f2;
+}
+
+/* Dark mode ONLY via explicit tokenized data-theme attribute, never raw media query flipping text to white */
+[data-theme="dark"] {
+  --primary: #525c5c;
+  --primary-hover: #677474;
+  --primary-foreground: #ffffff;
+
+  --background: #09090b;
+  --surface: #18181b;
+  --surface-card: #18181b;
+  --surface-card-hover: #27272a;
+  --surface-muted: #27272a;
+
+  --foreground: #f4f4f5;
+  --foreground-muted: #d4d4d8;
+  --foreground-subtle: #a1a1aa;
+
+  --border: #27272a;
+  --border-strong: #a1a1aa;
 }
 
 @theme inline {
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
   --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-card: var(--surface-card);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-foreground-muted: var(--foreground-muted);
+  --color-foreground-subtle: var(--foreground-subtle);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Standard UI conventions from Build Plan Section 4:
+   Buttons: black border; on hover black background with white text */
+.btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-strong);
+  background-color: transparent;
+  color: var(--foreground);
+  font-weight: 500;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.btn-outline:hover {
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.btn-solid {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+  border: 1px solid var(--primary);
+  font-weight: 500;
+  transition: background-color 0.15s ease;
+}
+.btn-solid:hover {
+  background-color: var(--primary-hover);
+}
+
+/* Card hover animation per Build Plan: scale slightly with shadow */
+.card-elevation {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.card-elevation:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.03);
 }

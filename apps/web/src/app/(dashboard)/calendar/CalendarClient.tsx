@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { createScheduledPostAction } from './calendar-actions';
 
 export interface CalendarPost {
   id: string;
@@ -34,6 +35,7 @@ export function CalendarClient({
   const [mediaType, setMediaType] = useState<'image' | 'video' | 'reel' | 'carousel'>('image');
   const [scheduledAt, setScheduledAt] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -42,21 +44,29 @@ export function CalendarClient({
     if (!caption || !scheduledAt) return;
 
     setSubmitting(true);
+    setError(null);
     try {
-      const newPost: CalendarPost = {
-        id: `local_${Date.now()}`,
+      const res = await createScheduledPostAction({
         caption,
         hashtags: hashtags.split(' ').filter(Boolean),
-        media_type: mediaType,
-        scheduled_at: new Date(scheduledAt).toISOString(),
-        status: 'SCHEDULED',
-        platform: 'instagram',
-      };
+        mediaType,
+        scheduledAt: new Date(scheduledAt).toISOString(),
+        accountId: _accountId,
+      });
 
-      setPosts([newPost, ...posts]);
+      if (res?.error) {
+        setError(res.error);
+        return;
+      }
+
+      if (res?.post) {
+        setPosts([res.post as CalendarPost, ...posts]);
+      }
       setIsModalOpen(false);
       setCaption('');
       setScheduledAt('');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to schedule post');
     } finally {
       setSubmitting(false);
     }
@@ -168,14 +178,14 @@ export function CalendarClient({
 
                     <p className="mt-2 line-clamp-3 text-zinc-800">{post.caption}</p>
 
-                    <div className="mt-2 flex items-center justify-between text-[10px] text-zinc-400">
+                    <div className="mt-2 flex items-center justify-between text-[10px] font-semibold text-zinc-600">
                       <span className="uppercase">{post.media_type}</span>
                     </div>
                   </div>
                 ))}
 
                 {dayPosts.length === 0 && (
-                  <div className="py-12 text-center text-[11px] text-zinc-300">No posts</div>
+                  <div className="py-12 text-center text-[11px] font-medium text-zinc-500">No posts</div>
                 )}
               </div>
             </div>
@@ -191,11 +201,17 @@ export function CalendarClient({
               <h2 className="text-base font-bold text-[#373E3E]">Schedule New Post</h2>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="text-zinc-400 hover:text-zinc-700"
+                className="text-zinc-600 hover:text-zinc-900"
               >
                 &times;
               </button>
             </div>
+
+            {error && (
+              <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+                {error}
+              </div>
+            )}
 
             <form onSubmit={handleCreatePost} className="mt-4 space-y-4">
               <div>

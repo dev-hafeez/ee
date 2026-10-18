@@ -1,6 +1,8 @@
 import re
 from typing import Any
 
+import os
+import joblib
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
@@ -8,7 +10,17 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from app.config import settings
 
 analyzer = SentimentIntensityAnalyzer()
+_model_path = os.path.join(os.path.dirname(__file__), "sentiment_classifier.joblib")
+_trained_model = None
+if os.path.exists(_model_path):
+    try:
+        _trained_model = joblib.load(_model_path)
+    except Exception:
+        _trained_model = None
 
+from functools import lru_cache
+
+@lru_cache(maxsize=2048)
 def clean_text(text: str) -> str:
     if not text:
         return ""
@@ -22,8 +34,16 @@ def clean_text(text: str) -> str:
 
 def analyze_sentiment(text: str) -> dict:
     if not text:
-        return {"compound": 0.0, "pos": 0.0, "neu": 0.0, "neg": 0.0}
-    return analyzer.polarity_scores(text)
+        return {"compound": 0.0, "pos": 0.0, "neu": 0.0, "neg": 0.0, "model": "none"}
+
+    scores = analyzer.polarity_scores(text)
+    scores["model"] = "vader"
+    if _trained_model is not None:
+        try:
+            scores["trained_class"] = str(_trained_model.predict([text])[0])
+        except Exception:
+            pass
+    return scores
 
 def compute_perf_score(likes: int, comments: int, shares: int, saves: int, reach: int, followers: int) -> float:
     engagement = (

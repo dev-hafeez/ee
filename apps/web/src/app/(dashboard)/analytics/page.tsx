@@ -1,22 +1,29 @@
 import { createClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { AnalyticsClient } from './AnalyticsClient';
+import { getCrossUserBenchmarks } from '@/lib/analytics/benchmarks';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AnalyticsPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
-  const db = user ? supabase : createAdminClient();
-
-  // Fetch accounts
-  const { data: accounts } = await db
-    .from('social_accounts')
-    .select('id, platform, handle')
-    .limit(5);
+  // Fetch accounts, competitor row, and cross-user benchmarks concurrently
+  const [
+    { data: accounts },
+    { data: competitorRow },
+    benchmarks,
+  ] = await Promise.all([
+    supabase
+      .from('social_accounts')
+      .select('id, platform, handle, last_sync')
+      .limit(5),
+    supabase
+      .from('competitors')
+      .select('handle, metrics')
+      .limit(1)
+      .maybeSingle(),
+    getCrossUserBenchmarks(),
+  ]);
 
   const selectedAccount = accounts && accounts.length > 0 ? accounts[0] : null;
 
@@ -29,7 +36,7 @@ export default async function AnalyticsPage() {
   const mediaPerformance: Record<string, { total: number; count: number }> = {};
 
   if (selectedAccount) {
-    const { data: posts } = await db
+    const { data: posts } = await supabase
       .from('posts')
       .select('id, posted_at, perf_score, media_type, engagement_metrics(likes, comments, reach)')
       .eq('account_id', selectedAccount.id)
@@ -72,12 +79,6 @@ export default async function AnalyticsPage() {
     }
   }
 
-  // Fetch competitor if exists
-  const { data: competitorRow } = await db
-    .from('competitors')
-    .select('handle, metrics')
-    .limit(1)
-    .maybeSingle();
 
   const contentPerformance = Object.entries(mediaPerformance).map(([type, stats]) => ({
     media_type: type,
@@ -106,6 +107,7 @@ export default async function AnalyticsPage() {
           publicEngagementRate: competitorRow.metrics?.public_engagement_rate ?? null,
         }
       : undefined,
+    benchmarks,
   };
 
   return <AnalyticsClient initialData={initialData} />;

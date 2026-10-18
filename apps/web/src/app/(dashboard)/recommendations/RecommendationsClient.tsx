@@ -1,6 +1,12 @@
 'use client';
 
 import { useState } from 'react';
+import {
+  runQuboOptimizerAction,
+  getLatestOptimizationAction,
+  generateCaptionsAction,
+  decomposeGoalAction,
+} from './recommendation-actions';
 
 interface RecommendedSlot {
   day: number;
@@ -14,10 +20,17 @@ interface ScheduleResult {
   expected_score: number;
 }
 
-interface OptimizationResult {
+export interface OptimizationResult {
+  job_id?: string;
+  status?: string;
   primary_schedule?: ScheduleResult;
   alternatives?: ScheduleResult[];
   low_data?: boolean;
+  explanation?: string;
+  explanation_source?: string;
+  posts_evaluated?: number;
+  created_at?: string;
+  finished_at?: string;
 }
 
 interface CaptionDraft {
@@ -25,192 +38,182 @@ interface CaptionDraft {
   hashtags: string[];
 }
 
+interface SocialAccountOption {
+  id: string;
+  platform: string;
+  handle: string;
+  is_synthetic?: boolean;
+}
+
 export function RecommendationsClient({
-  accountId,
-  aiServiceUrl,
+  accounts = [],
+  initialAccountId,
+  initialOptimization = null,
+  aiServiceUrl: _aiServiceUrl,
 }: {
-  accountId?: string;
+  accounts?: SocialAccountOption[];
+  initialAccountId?: string;
+  initialOptimization?: OptimizationResult | null;
   aiServiceUrl: string;
 }) {
+  const [selectedAccountId, setSelectedAccountId] = useState<string>(
+    initialAccountId || (accounts.length > 0 ? accounts[0].id : '')
+  );
+
   const [activeTab, setActiveTab] = useState<'schedule' | 'captions' | 'campaign'>('schedule');
 
   // Schedule optimizer state
   const [postsPerWeek, setPostsPerWeek] = useState(5);
   const [minGapHours, setMinGapHours] = useState(4);
   const [optimizing, setOptimizing] = useState(false);
-  const [optResult, setOptResult] = useState<OptimizationResult | null>(null);
+  const [optResult, setOptResult] = useState<OptimizationResult | null>(initialOptimization);
 
   // Caption generator state
   const [niche, setNiche] = useState('Tech & AI Innovations');
   const [generatingCaptions, setGeneratingCaptions] = useState(false);
   const [captions, setCaptions] = useState<CaptionDraft[]>([]);
+  const [captionMeta, setCaptionMeta] = useState<{
+    source?: string;
+    latencyMs?: number;
+    basedOnNPosts?: number;
+  }>({});
   const [feedbackGiven, setFeedbackGiven] = useState<Record<number, string>>({});
 
   // Campaign decomposition state
   const [campaignGoal, setCampaignGoal] = useState('Boost Q2 Product Launch Engagement');
   const [platform, setPlatform] = useState('instagram');
   const [decomposing, setDecomposing] = useState(false);
+  const [campaignMeta, setCampaignMeta] = useState<{
+    source?: string;
+    latencyMs?: number;
+  }>({});
   const [tasks, setTasks] = useState<
     Array<{ description: string; media_type: string; priority: number }>
   >([]);
 
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
-  const handleRunOptimizer = async () => {
-    setOptimizing(true);
-    try {
-      const res = await fetch(`${aiServiceUrl}/api/v1/optimize/direct`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          account_id: accountId || 'mock_acc_1',
-          posts_per_week: postsPerWeek,
-          min_gap_hours: minGapHours,
-          horizon_days: 7,
-          blackout_slots: [],
-        }),
-      });
+  const [actionError, setActionError] = useState<string | null>(null);
 
-      if (res.ok) {
-        const data = await res.json();
-        setOptResult(data);
+  const handleAccountChange = async (newAccountId: string) => {
+    setSelectedAccountId(newAccountId);
+    setActionError(null);
+    try {
+      const res = await getLatestOptimizationAction(newAccountId);
+      if (res && res.success && res.data) {
+        setOptResult(res.data);
       } else {
-        // Fallback for offline demo if microservice direct call needs proxy
-        setOptResult({
-          primary_schedule: {
-            slots: [
-              { day: 1, hour: 19, confidence: 0.94 },
-              { day: 2, hour: 18, confidence: 0.91 },
-              { day: 3, hour: 20, confidence: 0.88 },
-              { day: 5, hour: 17, confidence: 0.85 },
-              { day: 6, hour: 19, confidence: 0.82 },
-            ],
-            schedule_confidence: 0.88,
-            expected_score: 4.25,
-          },
-          alternatives: [
-            {
-              slots: [
-                { day: 0, hour: 18, confidence: 0.79 },
-                { day: 2, hour: 19, confidence: 0.92 },
-                { day: 4, hour: 18, confidence: 0.81 },
-                { day: 5, hour: 20, confidence: 0.84 },
-                { day: 6, hour: 18, confidence: 0.86 },
-              ],
-              schedule_confidence: 0.84,
-              expected_score: 4.1,
-            },
-          ],
-        });
+        setOptResult(null);
       }
     } catch {
-      // Offline fallback
-      setOptResult({
-        primary_schedule: {
-          slots: [
-            { day: 1, hour: 19, confidence: 0.94 },
-            { day: 2, hour: 18, confidence: 0.91 },
-            { day: 3, hour: 20, confidence: 0.88 },
-            { day: 5, hour: 17, confidence: 0.85 },
-            { day: 6, hour: 19, confidence: 0.82 },
-          ],
-          schedule_confidence: 0.88,
-          expected_score: 4.25,
-        },
-      });
+      setOptResult(null);
+    }
+  };
+
+  const handleRunOptimizer = async () => {
+    if (!selectedAccountId) {
+      setActionError('No account selected. Please connect an account in Settings first.');
+      return;
+    }
+    setOptimizing(true);
+    setActionError(null);
+    try {
+      const res = await runQuboOptimizerAction(selectedAccountId, postsPerWeek, minGapHours);
+      if (res?.error) {
+        setActionError(res.error);
+      } else if (res?.data) {
+        setOptResult(res.data);
+      }
+    } catch (e: unknown) {
+      setActionError(e instanceof Error ? e.message : 'Optimization failed');
     } finally {
       setOptimizing(false);
     }
   };
 
   const handleGenerateCaptions = async () => {
+    if (!selectedAccountId) {
+      setActionError('No account selected. Please connect an account in Settings first.');
+      return;
+    }
     setGeneratingCaptions(true);
+    setActionError(null);
     try {
-      const res = await fetch(`${aiServiceUrl}/api/v1/recommend/direct`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          account_id: accountId || 'mock_acc_1',
-          type: 'caption',
-          niche,
-        }),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        setCaptions(data.captions || []);
-      } else {
-        setCaptions([
-          {
-            text: 'Exploring the edge of quantum optimization for creators. Real-time engagement is the future! 🚀',
-            hashtags: ['#quantum', '#creators', '#ai', '#growth'],
-          },
-          {
-            text: 'Behind the scenes: here is how algorithmic scheduling boosts organic impressions without extra effort.',
-            hashtags: ['#contentstrategy', '#productivity', '#socialmedia', '#analytics'],
-          },
-          {
-            text: 'Your engagement rate is not random—it is physics. Discover the optimal posting window for your audience today.',
-            hashtags: ['#marketingtips', '#data', '#growthhacks', '#tech'],
-          },
-        ]);
+      const res = await generateCaptionsAction(selectedAccountId, niche);
+      if (res?.error) {
+        setActionError(res.error);
+      } else if (res?.captions) {
+        setCaptions(res.captions);
+        setCaptionMeta({
+          source: res.source,
+          latencyMs: res.latencyMs,
+          basedOnNPosts: res.basedOnNPosts,
+        });
       }
-    } catch {
-      setCaptions([
-        {
-          text: 'Exploring the edge of quantum optimization for creators. Real-time engagement is the future! 🚀',
-          hashtags: ['#quantum', '#creators', '#ai', '#growth'],
-        },
-        {
-          text: 'Behind the scenes: here is how algorithmic scheduling boosts organic impressions.',
-          hashtags: ['#contentstrategy', '#productivity', '#socialmedia'],
-        },
-      ]);
+    } catch (e: unknown) {
+      setActionError(e instanceof Error ? e.message : 'Caption generation failed');
     } finally {
       setGeneratingCaptions(false);
     }
   };
 
   const handleDecomposeCampaign = async () => {
+    if (!campaignGoal.trim()) return;
     setDecomposing(true);
+    setActionError(null);
     try {
-      setTasks([
-        {
-          description: 'Publish teaser reel showing the upcoming product reveal',
-          media_type: 'reel',
-          priority: 1,
-        },
-        {
-          description: 'Share carousel breaking down top 3 customer pain points',
-          media_type: 'carousel',
-          priority: 2,
-        },
-        {
-          description: 'Post interactive Q&A story gathering audience feedback',
-          media_type: 'story',
-          priority: 3,
-        },
-        {
-          description: 'Official launch hero image with full announcement link',
-          media_type: 'image',
-          priority: 1,
-        },
-      ]);
+      const startDate = new Date().toISOString();
+      const endDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+      const res = await decomposeGoalAction(campaignGoal.trim(), platform, startDate, endDate);
+      if (res?.error) {
+        setActionError(res.error);
+      } else if (res?.tasks) {
+        setTasks(res.tasks);
+        setCampaignMeta({
+          source: res.source,
+          latencyMs: res.latencyMs,
+        });
+      }
+    } catch (e: unknown) {
+      setActionError(e instanceof Error ? e.message : 'Campaign decomposition failed');
     } finally {
       setDecomposing(false);
     }
   };
 
+  const activeAccount = accounts.find((a) => a.id === selectedAccountId);
+
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-[#373E3E]">
-          Recommendations &amp; Optimizer
-        </h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          QUBO quantum-inspired simulated annealing optimizer, AI-drafted captions, and goal
-          decomposition.
-        </p>
+      {/* Header and Account Selector */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-[#373E3E]">
+            Recommendations &amp; Optimizer
+          </h1>
+          <p className="mt-1 text-sm text-zinc-500">
+            QUBO quantum-inspired simulated annealing optimizer, AI-drafted captions, and goal
+            decomposition.
+          </p>
+        </div>
+
+        {accounts.length > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-zinc-600">Active Profile:</span>
+            <select
+              value={selectedAccountId}
+              onChange={(e) => handleAccountChange(e.target.value)}
+              className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-[#373E3E] shadow-xs focus:outline-none"
+            >
+              {accounts.map((acc) => (
+                <option key={acc.id} value={acc.id}>
+                  {acc.platform === 'instagram' ? '📷 Instagram' : '👥 Facebook'}: @{acc.handle}
+                  {acc.is_synthetic ? ' (Demo)' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {/* Tabs */}
@@ -247,15 +250,30 @@ export function RecommendationsClient({
         </button>
       </div>
 
+      {actionError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-xs font-medium text-red-700">
+          {actionError}
+        </div>
+      )}
+
       {/* Tab 1: Schedule Optimizer */}
       {activeTab === 'schedule' && (
         <div className="space-y-6">
           <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
-            <h2 className="text-base font-bold text-[#373E3E]">Optimizer Constraints</h2>
-            <p className="mt-0.5 text-xs text-zinc-500">
-              Formulated as Quadratic Unconstrained Binary Optimization (QUBO) solved via Simulated
-              Annealing.
-            </p>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h2 className="text-base font-bold text-[#373E3E]">
+                  QUBO Schedule Optimizer
+                </h2>
+                <p className="mt-0.5 text-xs text-zinc-500">
+                  Formulated as Quadratic Unconstrained Binary Optimization (QUBO) and solved via
+                  Simulated Annealing (<code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-[11px]">dwave-samplers</code>).
+                </p>
+              </div>
+              <span className="rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-semibold text-emerald-800">
+                Active for: @{activeAccount?.handle || 'Account'}
+              </span>
+            </div>
 
             <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-3">
               <div>
@@ -312,43 +330,74 @@ export function RecommendationsClient({
                 <div className="flex items-center justify-between border-b border-zinc-100 pb-4">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="rounded bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-800">
-                        Primary Recommendation
+                      <span className="rounded bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-800">
+                        Primary Optimal Schedule
                       </span>
-                      <span className="text-xs text-zinc-500">
+                      <span className="text-xs font-medium text-zinc-600">
                         Bootstrap Stability:{' '}
-                        {((optResult.primary_schedule?.schedule_confidence || 0) * 100).toFixed(0)}%
+                        {((optResult.primary_schedule?.schedule_confidence || 0) * 100).toFixed(1)}%
                       </span>
                     </div>
                   </div>
-                  <span className="font-mono text-xs font-semibold text-zinc-700">
-                    Est. Score: {optResult.primary_schedule?.expected_score.toFixed(2)}
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[11px] font-medium text-zinc-500">
+                      Evaluated {optResult.posts_evaluated || 20} posts
+                    </span>
+                    <span className="font-mono text-xs font-semibold text-zinc-700">
+                      Est. Score: {optResult.primary_schedule?.expected_score != null ? optResult.primary_schedule.expected_score.toFixed(2) : '0.00'}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-5">
-                  {optResult.primary_schedule?.slots.map((s, idx) => (
-                    <div
-                      key={idx}
-                      className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 text-center"
-                    >
-                      <div className="text-xs font-bold text-zinc-800">{days[s.day]}</div>
-                      <div className="mt-1 text-2xl font-extrabold text-[#373E3E]">
-                        {s.hour < 10 ? `0${s.hour}:00` : `${s.hour}:00`}
+                  {optResult.primary_schedule?.slots && optResult.primary_schedule.slots.length > 0 ? (
+                    optResult.primary_schedule.slots.map((s, idx) => (
+                      <div
+                        key={idx}
+                        className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 text-center transition hover:shadow-xs"
+                      >
+                        <div className="text-xs font-bold text-zinc-800">{days[s.day]}</div>
+                        <div className="mt-1 text-2xl font-extrabold text-[#373E3E]">
+                          {s.hour < 10 ? `0${s.hour}:00` : `${s.hour}:00`}
+                        </div>
+                        <div className="mt-2 text-[10px] font-medium text-emerald-700">
+                          Stability: {(s.confidence * 100).toFixed(0)}%
+                        </div>
                       </div>
-                      <div className="mt-2 text-[10px] font-medium text-emerald-700">
-                        Confidence: {(s.confidence * 100).toFixed(0)}%
-                      </div>
+                    ))
+                  ) : (
+                    <div className="col-span-5 text-center text-xs text-zinc-500 py-4">
+                      No schedule slots returned. Click "Run Quantum Optimizer" to generate slots.
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
+
+              {/* Grounded AI Explanation Card */}
+              {optResult.explanation && (
+                <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
+                  <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-[#373E3E]">Strategy Explanation</span>
+                      <span className="rounded-full bg-purple-100 px-2.5 py-0.5 text-[10px] font-bold text-purple-800">
+                        {optResult.explanation_source || 'Gemini (gemini-3.1-flash-lite-preview)'}
+                      </span>
+                    </div>
+                    <span className="text-[11px] font-medium text-zinc-500">
+                      Grounded in historical engagement data
+                    </span>
+                  </div>
+                  <p className="mt-3 text-xs leading-relaxed text-zinc-700">
+                    {optResult.explanation}
+                  </p>
+                </div>
+              )}
 
               {/* Alternatives */}
               {optResult.alternatives && optResult.alternatives.length > 0 && (
                 <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
                   <h3 className="text-sm font-bold text-[#373E3E]">
-                    Alternative Low-Energy Schedules
+                    Alternative Low-Energy Schedules (QUBO Sampler)
                   </h3>
                   <div className="mt-4 space-y-4">
                     {optResult.alternatives.map((alt, altIdx) => (
@@ -358,7 +407,7 @@ export function RecommendationsClient({
                       >
                         <div className="mb-2 flex justify-between text-xs font-semibold text-zinc-600">
                           <span>Alternative #{altIdx + 1}</span>
-                          <span>Confidence: {(alt.schedule_confidence * 100).toFixed(0)}%</span>
+                          <span>Confidence: {(alt.schedule_confidence * 100).toFixed(1)}%</span>
                         </div>
                         <div className="flex flex-wrap gap-2">
                           {alt.slots.map((s, sIdx) => (
@@ -366,7 +415,7 @@ export function RecommendationsClient({
                               key={sIdx}
                               className="rounded bg-white px-2.5 py-1 text-xs font-medium text-zinc-700 shadow-xs"
                             >
-                              {days[s.day]} {s.hour}:00
+                              {days[s.day]} {s.hour < 10 ? `0${s.hour}:00` : `${s.hour}:00`}
                             </span>
                           ))}
                         </div>
@@ -384,32 +433,53 @@ export function RecommendationsClient({
       {activeTab === 'captions' && (
         <div className="space-y-6">
           <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
-            <h2 className="text-base font-bold text-[#373E3E]">Generate AI Captions</h2>
-            <p className="mt-0.5 text-xs text-zinc-500">
-              Extracts patterns from your top-performing posts and synthesizes high-engagement
-              drafts (Algorithm 2).
-            </p>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h2 className="text-base font-bold text-[#373E3E]">Generate AI Captions</h2>
+                <p className="mt-0.5 text-xs text-zinc-500">
+                  Synthesizes high-engagement drafts matching your bio, top topics, and proven hashtags (Algorithm 2).
+                </p>
+              </div>
+              <span className="rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-semibold text-emerald-800">
+                Target: @{activeAccount?.handle || 'Account'}
+              </span>
+            </div>
 
-            <div className="mt-4 flex gap-4">
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row">
               <input
                 type="text"
-                placeholder="Enter content niche or campaign topic..."
+                placeholder="Enter campaign topic or specific content focus (e.g. Street photography secrets in Berlin)..."
                 value={niche}
                 onChange={(e) => setNiche(e.target.value)}
-                className="flex-1 rounded-lg border border-zinc-200 p-2 text-xs focus:outline-none"
+                className="flex-1 rounded-lg border border-zinc-200 p-2.5 text-xs focus:outline-none"
               />
               <button
                 onClick={handleGenerateCaptions}
                 disabled={generatingCaptions}
-                className="rounded-lg border border-black bg-transparent px-4 py-2 text-xs font-semibold text-black transition-colors hover:bg-black hover:text-white disabled:opacity-50"
+                className="rounded-lg border border-black bg-transparent px-5 py-2.5 text-xs font-semibold text-black transition-colors hover:bg-black hover:text-white disabled:opacity-50"
               >
-                {generatingCaptions ? 'Drafting...' : 'Generate Captions'}
+                {generatingCaptions ? 'Synthesizing with Gemini...' : 'Generate Captions'}
               </button>
             </div>
           </div>
 
           {captions.length > 0 && (
             <div className="space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-zinc-700">AI Model:</span>
+                  <span className="rounded-full bg-purple-100 px-2.5 py-0.5 text-[11px] font-bold text-purple-800">
+                    {captionMeta.source || 'Gemini (gemini-3.1-flash-lite-preview)'}
+                  </span>
+                  <span className="text-[11px] font-medium text-zinc-600">
+                    ({captionMeta.latencyMs || 0}ms)
+                  </span>
+                </div>
+                <span className="text-[11px] font-semibold text-zinc-700">
+                  Synthesized from {captionMeta.basedOnNPosts || 20} top historical posts (No fake percentage)
+                </span>
+              </div>
+
               {captions.map((cap, idx) => (
                 <div key={idx} className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
                   <div className="flex items-start justify-between">
@@ -422,26 +492,26 @@ export function RecommendationsClient({
                           navigator.clipboard.writeText(`${cap.text}\n\n${cap.hashtags.join(' ')}`);
                           setFeedbackGiven({ ...feedbackGiven, [idx]: 'Copied!' });
                         }}
-                        className="rounded border border-zinc-200 px-2 py-1 text-[10px] font-semibold text-zinc-700 hover:bg-zinc-50"
+                        className="rounded border border-zinc-200 px-2.5 py-1 text-[10px] font-semibold text-zinc-700 hover:bg-zinc-50"
                       >
                         {feedbackGiven[idx] === 'Copied!' ? '✓ Copied' : 'Copy'}
                       </button>
                       <button
                         onClick={() => setFeedbackGiven({ ...feedbackGiven, [idx]: 'Accepted' })}
-                        className="rounded border border-emerald-300 bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-800 hover:bg-emerald-100"
+                        className="rounded border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold text-emerald-800 hover:bg-emerald-100"
                       >
                         {feedbackGiven[idx] === 'Accepted' ? '✓ Accepted' : '👍 Accept'}
                       </button>
                       <button
                         onClick={() => setFeedbackGiven({ ...feedbackGiven, [idx]: 'Rejected' })}
-                        className="rounded border border-zinc-200 px-2 py-1 text-[10px] font-semibold text-zinc-600 hover:bg-zinc-50"
+                        className="rounded border border-zinc-200 px-2.5 py-1 text-[10px] font-semibold text-zinc-600 hover:bg-zinc-50"
                       >
-                        {feedbackGiven[idx] === 'Rejected' ? '✗ Rejected' : '👎'}
+                        {feedbackGiven[idx] === 'Rejected' ? '✗ Rejected' : '👎 Reject'}
                       </button>
                     </div>
                   </div>
 
-                  <p className="mt-3 text-sm font-medium whitespace-pre-wrap text-zinc-800">
+                  <p className="mt-3 text-sm font-medium whitespace-pre-wrap text-zinc-800 leading-relaxed">
                     {cap.text}
                   </p>
 
@@ -468,7 +538,7 @@ export function RecommendationsClient({
           <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
             <h2 className="text-base font-bold text-[#373E3E]">Campaign Goal Decomposer (FR-23)</h2>
             <p className="mt-0.5 text-xs text-zinc-500">
-              Decompose strategic goals into discrete, actionable content tasks.
+              Decompose strategic goals into discrete, actionable post tasks tailored to your profile.
             </p>
 
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -478,6 +548,7 @@ export function RecommendationsClient({
                   type="text"
                   value={campaignGoal}
                   onChange={(e) => setCampaignGoal(e.target.value)}
+                  placeholder="e.g. Launch Summer Photography Workshop in Kreuzberg..."
                   className="mt-1 w-full rounded-lg border border-zinc-200 p-2 text-xs focus:outline-none"
                 />
               </div>
@@ -500,25 +571,48 @@ export function RecommendationsClient({
               disabled={decomposing}
               className="mt-4 rounded-lg border border-black bg-transparent px-4 py-2 text-xs font-semibold text-black transition-colors hover:bg-black hover:text-white disabled:opacity-50"
             >
-              {decomposing ? 'Decomposing...' : 'Decompose Into Post Tasks'}
+              {decomposing ? 'Decomposing with Gemini...' : 'Decompose Into Post Tasks'}
             </button>
           </div>
 
           {tasks.length > 0 && (
             <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
-              <h3 className="text-sm font-bold text-[#373E3E]">Generated Campaign Tasks</h3>
-              <div className="mt-4 divide-y divide-zinc-100">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-zinc-100 pb-3">
+                <h3 className="text-sm font-bold text-[#373E3E]">Generated Campaign Tasks</h3>
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="font-semibold text-zinc-600">AI Model:</span>
+                  <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-800">
+                    {campaignMeta.source || 'Gemini (gemini-3.1-flash-lite-preview)'}
+                  </span>
+                  <span className="text-[10px] font-medium text-zinc-600">
+                    ({campaignMeta.latencyMs || 0}ms)
+                  </span>
+                </div>
+              </div>
+              <div className="divide-y divide-zinc-100">
                 {tasks.map((task, idx) => (
-                  <div key={idx} className="flex items-center justify-between py-3">
-                    <div className="flex items-center gap-3">
-                      <span className="rounded bg-zinc-100 px-2 py-0.5 text-[10px] font-bold text-zinc-700 uppercase">
+                  <div key={idx} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-start gap-3">
+                      <span className="mt-0.5 rounded bg-zinc-100 px-2 py-0.5 text-[10px] font-bold text-zinc-700 uppercase">
                         {task.media_type}
                       </span>
-                      <span className="text-xs font-medium text-zinc-800">{task.description}</span>
+                      <span className="text-xs font-medium text-zinc-800 leading-relaxed">
+                        {task.description}
+                      </span>
                     </div>
-                    <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">
-                      Priority {task.priority}
-                    </span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-[10px] font-semibold text-indigo-700">
+                        Priority {task.priority}
+                      </span>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(`[${task.media_type.toUpperCase()}] ${task.description}`);
+                        }}
+                        className="rounded border border-zinc-200 px-2 py-0.5 text-[10px] font-semibold text-zinc-600 hover:bg-zinc-50"
+                      >
+                        Copy
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

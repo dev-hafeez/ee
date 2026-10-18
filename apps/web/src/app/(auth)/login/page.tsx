@@ -102,7 +102,7 @@ export default function LoginPage() {
           <div className="absolute inset-0 flex items-center">
             <div className="w-full border-t border-zinc-200" />
           </div>
-          <span className="relative bg-white px-3 text-xs tracking-wider text-zinc-400 uppercase">
+          <span className="relative bg-white px-3 text-xs font-semibold tracking-wider text-zinc-600 uppercase">
             or
           </span>
         </div>

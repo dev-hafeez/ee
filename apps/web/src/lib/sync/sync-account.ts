@@ -84,6 +84,44 @@ export async function syncAccountData(accountId: string, userId?: string): Promi
       if (metricsError) {
         console.warn(`Failed to insert metrics snapshots: ${metricsError.message}`);
       }
+
+      // Trigger AI content analysis microservice to compute perf_score, topics, and sentiment
+      try {
+        const aiUrl = process.env.AI_SERVICE_URL || 'http://localhost:8000';
+        const aiSecret = process.env.AI_SERVICE_SECRET || '';
+        const postsForAnalysis = upsertedPosts.map((dbPost, idx) => {
+          const m = metricsRows[idx] || {};
+          const orig = normalizedPosts[idx] || {};
+          return {
+            id: dbPost.id,
+            caption: orig.caption || '',
+            media_type: orig.mediaType || 'image',
+            posted_at: orig.postedAt,
+            likes: m.likes || 0,
+            comments: m.comments || 0,
+            shares: m.shares || 0,
+            saves: m.saves || 0,
+            reach: m.reach || 0,
+            views: m.views,
+            impressions: m.impressions,
+          };
+        });
+
+        await fetch(`${aiUrl}/api/v1/analyze`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(aiSecret ? { Authorization: `Bearer ${aiSecret}` } : {}),
+          },
+          body: JSON.stringify({
+            account_id: account.id,
+            posts: postsForAnalysis,
+            account_followers: 1200,
+          }),
+        });
+      } catch (analysisErr) {
+        console.warn('Content analysis trigger skipped or failed:', analysisErr);
+      }
     }
   }
 

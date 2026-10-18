@@ -72,7 +72,7 @@ export default function SignupPage() {
                   name="fullName"
                   type="text"
                   required
-                  placeholder="Alex Rivers"
+                  placeholder="Your Name"
                   className="mt-1 block w-full rounded-lg border border-zinc-300 px-3.5 py-2.5 text-sm text-zinc-900 shadow-sm focus:border-[#373E3E] focus:ring-1 focus:ring-[#373E3E] focus:outline-none"
                 />
               </div>
@@ -86,7 +86,7 @@ export default function SignupPage() {
                   name="email"
                   type="email"
                   required
-                  placeholder="alex@creator.com"
+                  placeholder="you@example.com"
                   className="mt-1 block w-full rounded-lg border border-zinc-300 px-3.5 py-2.5 text-sm text-zinc-900 shadow-sm focus:border-[#373E3E] focus:ring-1 focus:ring-[#373E3E] focus:outline-none"
                 />
               </div>
@@ -119,7 +119,7 @@ export default function SignupPage() {
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-zinc-200" />
               </div>
-              <span className="relative bg-white px-3 text-xs tracking-wider text-zinc-400 uppercase">
+              <span className="relative bg-white px-3 text-xs font-semibold tracking-wider text-zinc-600 uppercase">
                 or
               </span>
             </div>

@@ -2,8 +2,9 @@
 
 **Project**: Entangled Echo  
 **Last Updated**: October 2026  
-**Current Milestone**: Milestone 1.0 Complete (Phases 1–14 Completed & Verified)  
-**Next Milestone**: Milestone 2.0 (Production Cloud Deployment & Colocation)
+**Current Milestone**: Milestone 2.0 In Progress  
+**Active Phase**: Phase 15 — Production Authenticity & High-Contrast Design (Owner Feedback Remediation)  
+**Status**: Completed & Verified (Evidence Captured)
 
 ---
 
@@ -11,17 +12,17 @@
 
 | Dimension | Metric | Status | Evidence |
 | :--- | :--- | :---: | :--- |
-| **Web Test Suite** | 40 / 40 passing | **100% Pass** | `tsx --test tests/*.test.ts` (Phase 3..12 + NFRs) |
-| **AI Python Suite**| 20 / 20 passing | **100% Pass** | `pytest tests/` (QUBO, NLP, LLM, health) |
+| **Web Test Suite** | 45 / 45 passing | **100% Pass** | `tsx --test tests/*.test.ts` (Phase 3..15 + NFRs) |
+| **AI Python Suite**| 26 / 26 passing | **100% Pass** | `pytest tests/` (QUBO, NLP, LLM, anti-hallucination) |
 | **Type Integrity** | TypeScript strict | **0 Errors** | `tsc --noEmit` across all apps |
-| **Accessibility**  | WCAG 2.1 AA | **0 Violations** | `axe-core` headless automated audit |
+| **Real Browser Contrast** | WCAG 2.1 AA | **0 Violations (12/12 pages)** | Playwright + Chromium (`/snap/bin/chromium`) + `axe-core` |
 | **Solver Benchmark**| Optimality vs Ground Truth | **92.4%** | `scripts/evaluate_benchmarks.py` |
 | **Sentiment Accuracy**| Sanders Twitter Corpus | **74.31%** | `scripts/train_sentiment.py` (vs VADER 51.82%) |
 | **Warm Page Load** | Local dev latency | **0.22s** | Turbopack + React `cache()` + staleTimes |
 
 ---
 
-## 2. Locked Architecture Decisions (D1 .. D27)
+## 2. Locked Architecture Decisions (D1 .. D28)
 
 | ID | Decision Summary | Rationale |
 | :--- | :--- | :--- |
@@ -46,6 +47,7 @@
 | **D25**| Watermarked AI Image Studio with 10 image/day rate limit | Supplemental creative studio for social media post previews. |
 | **D26**| Grounded AI Assistant with Unseen Numbers Validator | Grounded exclusively in user analytics with strict anti-hallucination checks. |
 | **D27**| Sanders Sentiment Model ($N=3,424$) | Trained on public hand-labeled social sentiment corpus. |
+| **D28**| Cross-User Anonymized Benchmarks Guardrail ($K \ge 20$) | Real aggregation only; strictly displays "Not enough data yet" when under 20 accounts. Opt-in toggle in Settings. |
 
 ---
 

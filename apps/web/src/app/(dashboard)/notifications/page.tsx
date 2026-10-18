@@ -1,18 +1,12 @@
 import { createClient } from '@/lib/supabase/server';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { NotificationsClient, NotificationItem } from './NotificationsClient';
 
 export const dynamic = 'force-dynamic';
 
 export default async function NotificationsPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
-  const db = user ? supabase : createAdminClient();
-
-  const { data: notifications } = await db
+  const { data: notifications } = await supabase
     .from('notifications')
     .select('id, type, message, is_read, sent_at')
     .order('sent_at', { ascending: false })

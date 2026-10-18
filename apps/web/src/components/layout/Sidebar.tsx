@@ -25,7 +25,7 @@ export function Sidebar() {
           </div>
           <div>
             <h1 className="text-base leading-tight font-bold text-[#373E3E]">Entangled Echo</h1>
-            <span className="text-[10px] font-medium tracking-wide text-zinc-400 uppercase">
+            <span className="text-[10px] font-semibold tracking-wide text-zinc-600 uppercase">
               Quantum Optimizer
             </span>
           </div>
@@ -38,6 +38,7 @@ export function Sidebar() {
               <Link
                 key={item.name}
                 href={item.href}
+                prefetch={true}
                 className={`flex items-center gap-3 rounded-lg px-3.5 py-2.5 text-sm font-medium transition ${
                   isActive
                     ? 'bg-zinc-100 font-semibold text-[#373E3E]'
@@ -58,7 +59,6 @@ export function Sidebar() {
           className="flex items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
         >
           <span>Admin Portal</span>
-          <span className="rounded bg-zinc-200 px-1.5 py-0.5 text-[10px] text-zinc-700">FR-06</span>
         </Link>
       </div>
     </aside>

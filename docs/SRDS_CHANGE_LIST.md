@@ -16,18 +16,25 @@
 | Add "quantum-inspired" qualifier wherever "quantum" appears alone | Solver is classical SA on a QUBO; not a QPU run |
 | Add "QUBO (Binary Quadratic Model) formulation" to the algorithm description | Replaces the pseudocode in §5.6.1 |
 
-### §2.2 Out of Scope
+### §2.2 Scope Modifications (Owner Updates)
 
-| Confirm: All other third-party social networks remain out of scope | Only Instagram and Facebook are implemented (D16) |
+| Change | Reason |
+|--------|--------|
+| Move **Image Generation** from Out-of-Scope to In-Scope | Added provider-abstracted Image Studio (`IMAGE_PROVIDER=gemini\|mock`), 10 images/day cap, watermarked `AI-generated` (D25) |
+| Move **In-App Assistant (Chatbot)** from Out-of-Scope to In-Scope | Added Grounded AI Assistant strictly bounded by user context with unseen numbers rejection (D26) |
+| Add **Model Training** to In-Scope | Trained and evaluated TF-IDF + Logistic Regression sentiment model on public Sanders Twitter Sentiment Corpus vs VADER baseline (D27) |
+| Confirm: Other social networks (TikTok, X, LinkedIn, YouTube) remain strictly out of scope | Only Instagram and Facebook are implemented (D16) |
 
 ### §3.1 Functional Requirements
 
 | FR | Change |
 |----|--------|
-| FR-13 | Change "NLP Analysis" to "TF-IDF topic extraction + VADER sentiment analysis". Remove any implication of DistilBERT, XGBoost, or LightGBM. |
+| FR-13 | Change "NLP Analysis" to "TF-IDF topic extraction + VADER sentiment analysis + trained social media sentiment classifier". Evaluated against public Sanders Twitter Corpus. |
 | FR-19 | Clarify: alternatives come from top-K distinct low-energy QUBO samples, not perturbation of primary schedule (D4/D22) |
 | FR-20 | Replace "confidence from primary schedule" with "bootstrap resampling: 30 resamples, confidence = fraction of bootstraps selecting each slot" |
-| FR-24 | Change "Machine Learning / model retraining" to "preference re-ranking": accepted/rejected items update per-account preference weights used for re-ranking and prompt hints. No model is retrained. (D20) |
+| FR-24 | Clarify: caption feedback updates per-account preference weights ("preference re-ranking"); offline model training uses public labeled sentiment benchmark dataset. |
+| FR-36 | **New**: Grounded In-App Assistant — answers questions using only user's metrics; refuses if user has no data; rejects unseen numbers. |
+| FR-37 | **New**: AI Image Generation Studio — generates 1080x1080 social media graphics with daily rate cap and mandatory `AI-generated` watermark. |
 
 ### §3.3.2 API Versions & Permissions
 

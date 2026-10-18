@@ -43,6 +43,33 @@ export async function GET(request: NextRequest) {
       ? new Date(Date.now() + authData.expiresIn * 1000).toISOString()
       : null;
 
+    // Safety net: verify profile row exists before inserting social_accounts
+    const { data: existingProfile } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (!existingProfile) {
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert(
+          {
+            id: userId,
+            display_name: 'User',
+            role: 'user',
+            timezone: 'UTC',
+          },
+          { onConflict: 'id' }
+        );
+
+      if (profileError) {
+        return NextResponse.redirect(
+          `${origin}/settings?error=${encodeURIComponent('User profile does not exist and could not be provisioned.')}`
+        );
+      }
+    }
+
     const { error: dbError } = await supabase.from('social_accounts').upsert(
       {
         user_id: userId,
@@ -59,6 +86,11 @@ export async function GET(request: NextRequest) {
     );
 
     if (dbError) {
+      if (dbError.code === '23503' || dbError.message?.includes('social_accounts_user_id_fkey')) {
+        return NextResponse.redirect(
+          `${origin}/settings?error=${encodeURIComponent('User profile does not exist in the database (FK violation: social_accounts_user_id_fkey). Please initialize your profile before connecting accounts.')}`
+        );
+      }
       return NextResponse.redirect(
         `${origin}/settings?error=${encodeURIComponent(dbError.message)}`
       );

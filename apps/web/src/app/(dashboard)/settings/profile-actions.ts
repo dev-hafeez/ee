@@ -7,6 +7,7 @@ export async function updateProfile(formData: FormData) {
   const displayName = formData.get('displayName') as string;
   const bio = formData.get('bio') as string;
   const timezone = formData.get('timezone') as string;
+  const benchmarkOptIn = formData.get('benchmarkOptIn') === 'true';
 
   const supabase = await createClient();
   const {
@@ -17,19 +18,34 @@ export async function updateProfile(formData: FormData) {
     return { error: 'Not authenticated' };
   }
 
-  const { error } = await supabase
+  // Attempt update including benchmark_opt_in
+  let updatePayload: Record<string, any> = {
+    display_name: displayName,
+    bio: bio,
+    timezone: timezone,
+    benchmark_opt_in: benchmarkOptIn,
+  };
+
+  let { error } = await supabase
     .from('profiles')
-    .update({
-      display_name: displayName,
-      bio: bio,
-      timezone: timezone,
-    })
+    .update(updatePayload)
     .eq('id', user.id);
+
+  // If column does not exist on remote DB yet, retry without benchmark_opt_in
+  if (error && error.code === '42703') {
+    delete updatePayload.benchmark_opt_in;
+    const retry = await supabase
+      .from('profiles')
+      .update(updatePayload)
+      .eq('id', user.id);
+    error = retry.error;
+  }
 
   if (error) {
     return { error: error.message };
   }
 
   revalidatePath('/settings');
+  revalidatePath('/analytics');
   return { success: true, message: 'Profile updated successfully.' };
 }
