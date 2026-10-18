@@ -1,0 +1,13 @@
+{
+  "project": "EntangledEcho",
+  "version": "1.0.0",
+  "mode": "brownfield",
+  "workflow": {
+    "auto_commit": true,
+    "strict_mode": true
+  },
+  "model_profile": "quality",
+  "intel": {
+    "enabled": true
+  }
+}
